@@ -14,4 +14,7 @@
 
 # Temporary files
 *.log
-*.tmp 
+*.tmp
+
+# HCA files in p3r directory
+p3r/ 
