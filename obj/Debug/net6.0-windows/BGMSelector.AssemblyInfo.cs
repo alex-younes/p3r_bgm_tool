@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BGMSelector")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ee60ecd4e11793efdf3c0144a6fdeb4aad7730bd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+25991b7982c82546bfa779dc361865e1605eeb1e")]
 [assembly: System.Reflection.AssemblyProductAttribute("BGMSelector")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BGMSelector")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
