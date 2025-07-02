@@ -1,0 +1,11 @@
+global_bgm[98]:
+  music = 10500
+end
+
+global_bgm[101]:
+  music = 10500
+end
+
+global_bgm[220040]:
+  music = 10500
+end
