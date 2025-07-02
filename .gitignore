@@ -3,6 +3,12 @@
 [Oo]bj/
 obj/
 obj/**/*
+**/obj/Debug/
+**/obj/Debug/**/*
+**/obj/Release/
+**/obj/Release/**/*
+obj/Debug/net6.0-windows/BGMSelector.AssemblyInfo.cs
+obj/Debug/net6.0-windows/BGMSelector.AssemblyInfoInputs.cache
 [Bb]uild/
 
 # Visual Studio files
