@@ -2,6 +2,7 @@ using BGMSelector.Models;
 using BGMSelector.Services;
 using System.ComponentModel;
 using Microsoft.VisualBasic.FileIO; // For RecycleBin operations
+using System.Diagnostics; // For Process
 
 namespace BGMSelector
 {
@@ -61,7 +62,7 @@ namespace BGMSelector
             
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1000, 600);
+            this.ClientSize = new System.Drawing.Size(1100, 650);
             this.Name = "MainForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Persona 3 Reload - BGM Selector";
@@ -121,32 +122,34 @@ namespace BGMSelector
                 Dock = DockStyle.Top
             };
 
-            ToolStripMenuItem actionsMenuItem = new ToolStripMenuItem("Actions");
-            actionsMenuItem.ForeColor = _lightText;
-
-            ToolStripMenuItem modifyHcaMenuItem = new ToolStripMenuItem("Modify Selected HCA File...");
+            ToolStripMenuItem modifyHcaMenuItem = new ToolStripMenuItem("Modify Selected HCA File");
             modifyHcaMenuItem.BackColor = _darkBackground;
             modifyHcaMenuItem.ForeColor = _lightText;
             modifyHcaMenuItem.Click += ModifyHcaMenuItem_Click;
 
-            ToolStripMenuItem editHcaNameMenuItem = new ToolStripMenuItem("Edit HCA Name...");
+            ToolStripMenuItem editHcaNameMenuItem = new ToolStripMenuItem("Edit HCA Custom Name");
             editHcaNameMenuItem.BackColor = _darkBackground;
             editHcaNameMenuItem.ForeColor = _lightText;
             editHcaNameMenuItem.Click += EditHcaNameMenuItem_Click;
 
-            actionsMenuItem.DropDownItems.Add(modifyHcaMenuItem);
-            actionsMenuItem.DropDownItems.Add(editHcaNameMenuItem);
-            menuStrip.Items.Add(actionsMenuItem);
+            ToolStripMenuItem converterMenuItem = new ToolStripMenuItem("WAV to HCA Converter");
+            converterMenuItem.BackColor = _darkBackground;
+            converterMenuItem.ForeColor = _lightText;
+            converterMenuItem.Click += ConverterMenuItem_Click;
+
+            menuStrip.Items.Add(modifyHcaMenuItem);
+            menuStrip.Items.Add(editHcaNameMenuItem);
+            menuStrip.Items.Add(converterMenuItem);
 
             this.Controls.Add(menuStrip);
             
-            // Create main container
+            // Create main container with top padding to create space after menustrip
             TableLayoutPanel mainContainer = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
                 RowCount = 1,
-                Padding = new Padding(10),
+                Padding = new Padding(10, 15, 10, 10), // Added top padding
                 BackColor = _darkBackground
             };
             
@@ -1254,7 +1257,7 @@ namespace BGMSelector
                 inputForm.Width = 400;
                 inputForm.Height = 150;
                 inputForm.FormBorderStyle = FormBorderStyle.FixedDialog;
-                inputForm.Text = "Edit HCA Name";
+                inputForm.Text = "Edit HCA Custom Name";
                 inputForm.StartPosition = FormStartPosition.CenterParent;
                 inputForm.BackColor = _darkBackground;
                 inputForm.ForeColor = _lightText;
@@ -1329,6 +1332,448 @@ namespace BGMSelector
                     UpdateAssignmentsList();
                     inputForm.DialogResult = DialogResult.OK;
                 }
+            }
+        }
+
+        private void ConverterMenuItem_Click(object? sender, EventArgs e)
+        {
+            // Create and show the converter dialog
+            using (var converterForm = new Form())
+            {
+                converterForm.Width = 700;
+                converterForm.Height = 500;
+                converterForm.FormBorderStyle = FormBorderStyle.Sizable;
+                converterForm.Text = "WAV to HCA Converter";
+                converterForm.StartPosition = FormStartPosition.CenterParent;
+                converterForm.BackColor = _darkBackground;
+                converterForm.ForeColor = _lightText;
+                converterForm.MinimizeBox = true;
+                converterForm.MaximizeBox = true;
+                converterForm.Icon = this.Icon;
+
+                // Create layout
+                TableLayoutPanel mainLayout = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    ColumnCount = 1,
+                    RowCount = 3,
+                    Padding = new Padding(10),
+                    BackColor = _darkBackground
+                };
+
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+
+                // Drop panel for WAV files
+                Panel dropPanel = new Panel
+                {
+                    Dock = DockStyle.Fill,
+                    AllowDrop = true,
+                    BackColor = Color.FromArgb(35, 35, 35),
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+
+                Label dropLabel = new Label
+                {
+                    Text = "Drop WAV files here or click to select files",
+                    ForeColor = Color.Gray,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Dock = DockStyle.Fill,
+                    Font = new Font("Arial", 12, FontStyle.Regular)
+                };
+
+                dropPanel.Controls.Add(dropLabel);
+
+                // ListView for files
+                ListView fileListView = new ListView
+                {
+                    Dock = DockStyle.Fill,
+                    BackColor = Color.FromArgb(40, 40, 40),
+                    ForeColor = _lightText,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    FullRowSelect = true,
+                    CheckBoxes = true,
+                    View = View.Details,
+                    HideSelection = false
+                };
+
+                fileListView.Columns.Add("File Name", 250);
+                fileListView.Columns.Add("Status", 100);
+                fileListView.Columns.Add("Output HCA", 150);
+                fileListView.Columns.Add("Size", 80);
+
+                // Buttons panel
+                TableLayoutPanel buttonsPanel = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    ColumnCount = 4,
+                    RowCount = 1
+                };
+
+                buttonsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+                buttonsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+                buttonsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+                buttonsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+
+                Button selectAllButton = new Button
+                {
+                    Text = "Select All",
+                    Dock = DockStyle.Fill,
+                    BackColor = Color.FromArgb(60, 60, 60),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat
+                };
+
+                Button deselectAllButton = new Button
+                {
+                    Text = "Deselect All",
+                    Dock = DockStyle.Fill,
+                    BackColor = Color.FromArgb(60, 60, 60),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat
+                };
+
+                Button convertButton = new Button
+                {
+                    Text = "Convert Selected",
+                    Dock = DockStyle.Fill,
+                    BackColor = _personaBlue,
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat
+                };
+
+                Button importButton = new Button
+                {
+                    Text = "Import Selected to P3R",
+                    Dock = DockStyle.Fill,
+                    BackColor = _personaBlue,
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Enabled = false // Initially disabled until files are converted
+                };
+
+                buttonsPanel.Controls.Add(selectAllButton, 0, 0);
+                buttonsPanel.Controls.Add(deselectAllButton, 1, 0);
+                buttonsPanel.Controls.Add(convertButton, 2, 0);
+                buttonsPanel.Controls.Add(importButton, 3, 0);
+
+                // Add controls to main layout
+                mainLayout.Controls.Add(dropPanel, 0, 0);
+                mainLayout.Controls.Add(fileListView, 0, 1);
+                mainLayout.Controls.Add(buttonsPanel, 0, 2);
+
+                converterForm.Controls.Add(mainLayout);
+
+                // Dictionary to track converted files
+                Dictionary<string, string> convertedFiles = new Dictionary<string, string>();
+
+                // Event handlers
+                dropPanel.DragEnter += (s, e) => {
+                    if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                    {
+                        string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                        if (files.All(file => Path.GetExtension(file).ToLower() == ".wav"))
+                        {
+                            e.Effect = DragDropEffects.Copy;
+                            dropPanel.BackColor = Color.FromArgb(50, 80, 50);
+                        }
+                        else
+                        {
+                            e.Effect = DragDropEffects.None;
+                            dropPanel.BackColor = Color.FromArgb(80, 50, 50);
+                        }
+                    }
+                };
+
+                dropPanel.DragLeave += (s, e) => {
+                    dropPanel.BackColor = Color.FromArgb(35, 35, 35);
+                };
+
+                dropPanel.DragDrop += (s, e) => {
+                    dropPanel.BackColor = Color.FromArgb(35, 35, 35);
+                    
+                    if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                    {
+                        string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                        var wavFiles = files.Where(file => Path.GetExtension(file).ToLower() == ".wav").ToArray();
+                        
+                        if (wavFiles.Length > 0)
+                        {
+                            AddFilesToList(wavFiles);
+                        }
+                    }
+                };
+
+                dropPanel.Click += (s, e) => {
+                    using (OpenFileDialog openFileDialog = new OpenFileDialog())
+                    {
+                        openFileDialog.Filter = "WAV files (*.wav)|*.wav|All files (*.*)|*.*";
+                        openFileDialog.Multiselect = true;
+
+                        if (openFileDialog.ShowDialog() == DialogResult.OK)
+                        {
+                            AddFilesToList(openFileDialog.FileNames);
+                        }
+                    }
+                };
+
+                selectAllButton.Click += (s, e) => {
+                    foreach (ListViewItem item in fileListView.Items)
+                    {
+                        item.Checked = true;
+                    }
+                };
+
+                deselectAllButton.Click += (s, e) => {
+                    foreach (ListViewItem item in fileListView.Items)
+                    {
+                        item.Checked = false;
+                    }
+                };
+
+                convertButton.Click += (s, e) => {
+                    List<ListViewItem> itemsToConvert = new List<ListViewItem>();
+                    
+                    foreach (ListViewItem item in fileListView.Items)
+                    {
+                        if (item.Checked && item.SubItems[1].Text != "Converted")
+                        {
+                            itemsToConvert.Add(item);
+                        }
+                    }
+                    
+                    if (itemsToConvert.Count == 0)
+                    {
+                        MessageBox.Show("Please select files to convert.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    
+                    // Find VGAudioCli.exe
+                    string baseDir = Path.GetDirectoryName(Application.ExecutablePath) ?? "";
+                    string vgAudioPath = Path.Combine(baseDir, "VGAudioCli.exe");
+                    
+                    if (!File.Exists(vgAudioPath))
+                    {
+                        // Try to find it in common locations
+                        string[] possiblePaths = {
+                            Path.Combine(baseDir, "tools", "VGAudioCli.exe"),
+                            Path.Combine(baseDir, "..", "tools", "VGAudioCli.exe"),
+                            Path.Combine(baseDir, "converter", "VGAudioCli.exe")
+                        };
+                        
+                        foreach (string path in possiblePaths)
+                        {
+                            if (File.Exists(path))
+                            {
+                                vgAudioPath = path;
+                                break;
+                            }
+                        }
+                        
+                        if (!File.Exists(vgAudioPath))
+                        {
+                            // Ask user to locate VGAudioCli.exe
+                            using (OpenFileDialog dialog = new OpenFileDialog())
+                            {
+                                dialog.Title = "Locate VGAudioCli.exe";
+                                dialog.Filter = "VGAudioCli.exe|VGAudioCli.exe";
+                                
+                                if (dialog.ShowDialog() == DialogResult.OK)
+                                {
+                                    vgAudioPath = dialog.FileName;
+                                }
+                                else
+                                {
+                                    MessageBox.Show("VGAudioCli.exe is required for conversion.", "Tool Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Create temp directory for output
+                    string tempDir = Path.Combine(Path.GetTempPath(), "BGMEConverter");
+                    if (!Directory.Exists(tempDir))
+                    {
+                        Directory.CreateDirectory(tempDir);
+                    }
+                    
+                    // Process each file
+                    foreach (ListViewItem item in itemsToConvert)
+                    {
+                        string inputFile = item.Tag.ToString();
+                        string outputFileName = Path.GetFileNameWithoutExtension(inputFile) + ".hca";
+                        string outputFile = Path.Combine(tempDir, outputFileName);
+                        
+                        // Update status
+                        item.SubItems[1].Text = "Converting...";
+                        item.SubItems[2].Text = outputFileName;
+                        fileListView.Update();
+                        
+                        try
+                        {
+                            // Run VGAudioCli
+                            ProcessStartInfo psi = new ProcessStartInfo
+                            {
+                                FileName = vgAudioPath,
+                                Arguments = $"\"{inputFile}\" -o \"{outputFile}\"",
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true
+                            };
+                            
+                            using (Process process = Process.Start(psi))
+                            {
+                                process.WaitForExit();
+                                
+                                if (process.ExitCode == 0 && File.Exists(outputFile))
+                                {
+                                    // Update status and file info
+                                    item.SubItems[1].Text = "Converted";
+                                    
+                                    // Get file size
+                                    long fileSize = new FileInfo(outputFile).Length;
+                                    string sizeText = fileSize < 1024 * 1024 
+                                        ? $"{fileSize / 1024} KB" 
+                                        : $"{fileSize / (1024 * 1024)} MB";
+                                    
+                                    item.SubItems[3].Text = sizeText;
+                                    
+                                    // Store converted file path
+                                    convertedFiles[inputFile] = outputFile;
+                                }
+                                else
+                                {
+                                    item.SubItems[1].Text = "Failed";
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            item.SubItems[1].Text = "Error";
+                            MessageBox.Show($"Error converting {Path.GetFileName(inputFile)}: {ex.Message}", "Conversion Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                    
+                    // Enable import button if any files were converted
+                    importButton.Enabled = convertedFiles.Count > 0;
+                };
+
+                importButton.Click += (s, e) => {
+                    List<string> filesToImport = new List<string>();
+                    
+                    foreach (ListViewItem item in fileListView.Items)
+                    {
+                        string inputFile = item.Tag.ToString();
+                        
+                        if (item.Checked && convertedFiles.ContainsKey(inputFile))
+                        {
+                            filesToImport.Add(convertedFiles[inputFile]);
+                        }
+                    }
+                    
+                    if (filesToImport.Count == 0)
+                    {
+                        MessageBox.Show("Please select converted files to import.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    
+                    // Copy files to p3r directory
+                    int importedCount = 0;
+                    
+                    foreach (string file in filesToImport)
+                    {
+                        string fileName = Path.GetFileName(file);
+                        string destPath = Path.Combine(_hcaFolderPath, fileName);
+                        
+                        try
+                        {
+                            // Check if file already exists
+                            if (File.Exists(destPath))
+                            {
+                                DialogResult result = MessageBox.Show(
+                                    $"File {fileName} already exists. Do you want to replace it?",
+                                    "File Exists",
+                                    MessageBoxButtons.YesNo,
+                                    MessageBoxIcon.Question);
+                                    
+                                if (result == DialogResult.No)
+                                    continue;
+                            }
+                            
+                            // Copy the file
+                            File.Copy(file, destPath, true);
+                            importedCount++;
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Error importing {fileName}: {ex.Message}", "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                    
+                    // Show success message and refresh HCA files
+                    if (importedCount > 0)
+                    {
+                        string message = importedCount == 1 
+                            ? "1 file was imported successfully." 
+                            : $"{importedCount} files were imported successfully.";
+                            
+                        MessageBox.Show(message, "Import Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        
+                        // Refresh HCA files in the main form
+                        PopulateHcaFiles();
+                    }
+                };
+
+                // Helper function to add files to the list
+                void AddFilesToList(string[] files)
+                {
+                    foreach (string file in files)
+                    {
+                        // Check if file is already in the list
+                        bool alreadyExists = false;
+                        foreach (ListViewItem existingItem in fileListView.Items)
+                        {
+                            if (existingItem.Tag.ToString() == file)
+                            {
+                                alreadyExists = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!alreadyExists)
+                        {
+                            ListViewItem item = new ListViewItem(Path.GetFileName(file));
+                            item.SubItems.Add("Ready");
+                            item.SubItems.Add("");
+                            item.SubItems.Add("");
+                            item.Tag = file;
+                            item.Checked = true;
+                            
+                            fileListView.Items.Add(item);
+                        }
+                    }
+                }
+
+                converterForm.FormClosing += (s, e) => {
+                    // Clean up temp directory
+                    try
+                    {
+                        string tempDir = Path.Combine(Path.GetTempPath(), "BGMEConverter");
+                        if (Directory.Exists(tempDir))
+                        {
+                            Directory.Delete(tempDir, true);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors
+                    }
+                };
+
+                converterForm.ShowDialog();
             }
         }
 
