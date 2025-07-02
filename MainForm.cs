@@ -31,6 +31,7 @@ namespace BGMSelector
         private Button refreshHcaButton;
         private Panel dropPanel;
         private CheckBox enableMultiSelectCheckbox;
+        private Button randomizeButton;
 
         public MainForm()
         {
@@ -248,11 +249,11 @@ namespace BGMSelector
             var assignmentControlsLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Bottom,
-                Height = 190, // Increased height slightly
+                Height = 190, 
                 Padding = new Padding(10),
                 BackColor = _darkBackground,
-                ColumnCount = 3, // Labels | Inputs | Buttons
-                RowCount = 4
+                ColumnCount = 3, 
+                RowCount = 4 
             };
 
             // Define column styles
@@ -292,11 +293,12 @@ namespace BGMSelector
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 3,
+                RowCount = 4, // Added row for randomize button
                 Margin = new Padding(10, 0, 0, 0)
             };
             actionButtonsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             actionButtonsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
             actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
             actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
             actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
@@ -305,6 +307,7 @@ namespace BGMSelector
             var refreshHcaButton = new Button { Text = "↻", Dock = DockStyle.Fill, BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Arial", 10, FontStyle.Bold) };
             var assignButton = new Button { Text = "Assign", Dock = DockStyle.Fill, BackColor = _personaBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             var removeButton = new Button { Text = "Remove", Dock = DockStyle.Fill, BackColor = Color.FromArgb(70, 70, 70), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var randomizeButton = new Button { Text = "Randomize...", Dock = DockStyle.Fill, BackColor = Color.FromArgb(60, 100, 60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             
             actionButtonsPanel.Controls.Add(saveButton, 0, 0);
             actionButtonsPanel.Controls.Add(refreshHcaButton, 1, 0);
@@ -312,6 +315,8 @@ namespace BGMSelector
             actionButtonsPanel.SetColumnSpan(assignButton, 2);
             actionButtonsPanel.Controls.Add(removeButton, 0, 2);
             actionButtonsPanel.SetColumnSpan(removeButton, 2);
+            actionButtonsPanel.Controls.Add(randomizeButton, 0, 3);
+            actionButtonsPanel.SetColumnSpan(randomizeButton, 2);
 
             // --- Arrange Main Controls in Layout ---
             assignmentControlsLayout.Controls.Add(selectedTrackLabel, 0, 0);
@@ -323,7 +328,7 @@ namespace BGMSelector
             assignmentControlsLayout.Controls.Add(hcaFileComboBox, 1, 2);
             
             assignmentControlsLayout.Controls.Add(actionButtonsPanel, 2, 0);
-            assignmentControlsLayout.SetRowSpan(actionButtonsPanel, 3);
+            assignmentControlsLayout.SetRowSpan(actionButtonsPanel, 4); // Set RowSpan to 4 to include randomize button
             
             assignmentControlsLayout.Controls.Add(dropPanel, 0, 3);
             assignmentControlsLayout.SetColumnSpan(dropPanel, 2);
@@ -355,6 +360,7 @@ namespace BGMSelector
             this.refreshHcaButton = refreshHcaButton;
             this.dropPanel = dropPanel;
             this.enableMultiSelectCheckbox = enableMultiSelectCheckbox;
+            this.randomizeButton = randomizeButton;
             
             // Wire up events
             trackListView.SelectedIndexChanged += TrackListView_SelectedIndexChanged;
@@ -367,6 +373,7 @@ namespace BGMSelector
             removeButton.Click += RemoveButton_Click;
             refreshHcaButton.Click += RefreshHcaButton_Click;
             enableMultiSelectCheckbox.CheckedChanged += EnableMultiSelectCheckbox_CheckedChanged;
+            randomizeButton.Click += RandomizeButton_Click;
             
             // Wire up drop panel events
             dropPanel.DragEnter += DropPanel_DragEnter;
@@ -446,35 +453,39 @@ namespace BGMSelector
         {
             assignmentsListView.Items.Clear();
             
-            foreach (var assignment in _currentAssignments)
+            // Get all unique cue IDs from both dictionaries
+            var allCueIds = _currentAssignments.Keys.Union(_musicService.GetAllRandomizedCueIds()).Distinct().OrderBy(id => id);
+
+            foreach (var cueId in allCueIds)
             {
-                var item = new ListViewItem(assignment.Key.ToString());
+                var item = new ListViewItem(cueId.ToString());
                 
-                // Find track name by cue ID
                 string trackName = "Unknown";
                 if (_musicConfig?.Tracks != null)
                 {
-                    var track = _musicConfig.Tracks.FirstOrDefault(t => t.CueId == assignment.Key);
+                    var track = _musicConfig.Tracks.FirstOrDefault(t => t.CueId == cueId);
                     if (track != null)
                         trackName = track.Name ?? "Unknown";
                 }
-                
                 item.SubItems.Add(trackName);
 
-                string hcaFileName = assignment.Value;
-                string hcaDisplayName = _hcaNameService.GetName(hcaFileName);
-                
-                if (hcaDisplayName != hcaFileName)
+                if (_musicService.IsRandomized(cueId))
                 {
-                    item.SubItems.Add($"{hcaDisplayName} ({hcaFileName})");
+                    var randomTrack = _musicService.GetRandomizedTrack(cueId);
+                    item.SubItems.Add(randomTrack.ToString());
+                    item.BackColor = Color.FromArgb(35, 50, 35); 
+                }
+                else if (_currentAssignments.TryGetValue(cueId, out var hcaFileName) && !string.IsNullOrEmpty(hcaFileName))
+                {
+                    string hcaDisplayName = _hcaNameService.GetName(hcaFileName);
+                    item.SubItems.Add(hcaDisplayName != hcaFileName ? $"{hcaDisplayName} ({hcaFileName})" : hcaFileName);
                 }
                 else
                 {
-                    item.SubItems.Add(hcaFileName);
+                    item.SubItems.Add(""); // No assignment
                 }
                 
-                item.Tag = assignment.Key;
-                
+                item.Tag = cueId;
                 assignmentsListView.Items.Add(item);
             }
         }
@@ -682,6 +693,7 @@ namespace BGMSelector
                         if (item.Tag is MusicTrack track)
                         {
                             _currentAssignments[track.CueId] = hcaFile;
+                            _musicService.RemoveRandomization(track.CueId); // Ensure it's not randomized
                             assignedCount++;
                         }
                     }
@@ -692,6 +704,7 @@ namespace BGMSelector
                     {
                         int cueId = (int)item.Tag;
                         _currentAssignments[cueId] = hcaFile;
+                        _musicService.RemoveRandomization(cueId);
                         assignedCount++;
                     }
                 }
@@ -702,6 +715,7 @@ namespace BGMSelector
                 if (selectedTrackValue.Tag is MusicTrack track)
                 {
                     _currentAssignments[track.CueId] = hcaFile;
+                    _musicService.RemoveRandomization(track.CueId); // Ensure it's not randomized
                     assignedCount = 1;
                 }
             }
@@ -784,6 +798,7 @@ namespace BGMSelector
                     {
                         removedCount++;
                     }
+                    _musicService.RemoveRandomization(cueId);
                 }
                 UpdateAssignmentsList();
                 
@@ -948,6 +963,114 @@ namespace BGMSelector
             else
             {
                 selectedTrackValue.Text = "Multiple selection enabled";
+            }
+        }
+
+        private void RandomizeButton_Click(object? sender, EventArgs e)
+        {
+            if (trackListView.SelectedItems.Count == 0 && assignmentsListView.SelectedItems.Count == 0)
+            {
+                MessageBox.Show("Please select a track or an existing assignment to randomize.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int cueId;
+            if (trackListView.SelectedItems.Count > 0) 
+            {
+                 var track = trackListView.SelectedItems[0].Tag as MusicTrack;
+                 if (track == null) return;
+                 cueId = track.CueId;
+            }
+            else
+            {
+                cueId = (int)assignmentsListView.SelectedItems[0].Tag;
+            }
+
+            var randomTrack = _musicService.GetRandomizedTrack(cueId);
+            
+            using (var dialog = new Form())
+            {
+                dialog.Text = "Set Random BGM";
+                dialog.ClientSize = new Size(400, 450);
+                dialog.StartPosition = FormStartPosition.CenterParent;
+                dialog.BackColor = _darkBackground;
+                dialog.ForeColor = _lightText;
+                dialog.Padding = new Padding(10);
+
+                var mainLayout = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    RowCount = 3,
+                    ColumnCount = 1,
+                };
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+
+                var list = new CheckedListBox 
+                { 
+                    Dock = DockStyle.Fill, 
+                    BackColor = _darkBackground, 
+                    ForeColor = _lightText,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    Margin = new Padding(0, 5, 0, 5)
+                };
+
+                var allHcaFiles = _musicService.GetAvailableHcaFiles().OrderBy(f => f).ToList();
+                foreach(var file in allHcaFiles)
+                {
+                    string displayName = _hcaNameService.GetName(file);
+                    list.Items.Add(displayName == file ? file : $"{displayName} ({file})", randomTrack.HcaFiles.Contains(file));
+                }
+
+                var includeDefault = new CheckBox 
+                { 
+                    Text = "Include Default Game BGM", 
+                    Checked = randomTrack.IncludeDefault, 
+                    AutoSize = true,
+                    Dock = DockStyle.Fill
+                };
+
+                var okButton = new Button { Text = "OK", DialogResult = DialogResult.OK, Dock = DockStyle.Right, Width = 80 };
+                var cancelButton = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Dock = DockStyle.Right, Width = 80 };
+                
+                var buttonPanel = new Panel { Dock = DockStyle.Fill };
+                buttonPanel.Controls.Add(okButton);
+                buttonPanel.Controls.Add(cancelButton);
+
+                mainLayout.Controls.Add(includeDefault, 0, 0);
+                mainLayout.Controls.Add(list, 0, 1);
+                mainLayout.Controls.Add(buttonPanel, 0, 2);
+
+                dialog.Controls.Add(mainLayout);
+
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    var selectedHcaFiles = new List<string>();
+                    for(int i = 0; i < list.Items.Count; i++)
+                    {
+                        if(list.GetItemChecked(i))
+                        {
+                            selectedHcaFiles.Add(allHcaFiles[i]);
+                        }
+                    }
+
+                    _musicService.SetRandomizedTrack(cueId, selectedHcaFiles, includeDefault.Checked);
+                    
+                    // If the assignment becomes non-random, update the main dictionary, otherwise clear it
+                    var newRandomTrack = _musicService.GetRandomizedTrack(cueId);
+                    if (!newRandomTrack.IsRandomized)
+                    {
+                        _musicService.RemoveRandomization(cueId);
+                        _currentAssignments[cueId] = selectedHcaFiles.FirstOrDefault() ?? "";
+                    }
+                    else
+                    {
+                         _currentAssignments.Remove(cueId);
+                    }
+                    
+                    UpdateAssignmentsList();
+                }
             }
         }
 
