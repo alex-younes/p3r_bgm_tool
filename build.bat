@@ -13,6 +13,6 @@ xcopy /Y /I p3r\*.hca build\p3r
 
 REM Build the application
 echo Building application...
-dotnet publish -c Release -o build
+dotnet publish BGMSelector.csproj -c Release -o build
 
 echo Done! You can now run BGMSelector.exe from the build directory. 
