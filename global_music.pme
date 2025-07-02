@@ -1,12 +1,12 @@
 global_bgm[101]:
-  music = 34545
+  music = 23123
 end
 
 global_bgm[98]:
-  music = 34545
+  music = 23123
 end
 
 global_bgm[25]:
-  music = 13311
+  music = 23123
 end
 

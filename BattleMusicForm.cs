@@ -14,32 +14,10 @@ namespace BGMSelector
 {
     public class BattleMusicForm : Form
     {
-        private class DefaultTrackInfo
-        {
-            [System.Text.Json.Serialization.JsonPropertyName("file")]
-            public string File { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("displayName")]
-            public string DisplayName { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("id")]
-            public int? Id { get; set; }
-        }
-
-        private class DefaultTagsConfig
-        {
-            [System.Text.Json.Serialization.JsonPropertyName("defaultBattle")]
-            public List<DefaultTrackInfo> DefaultBattle { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("defaultVictory")]
-            public List<DefaultTrackInfo> DefaultVictory { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("customBattle")]
-            public List<DefaultTrackInfo> CustomBattle { get; set; }
-            [System.Text.Json.Serialization.JsonPropertyName("customVictory")]
-            public List<DefaultTrackInfo> CustomVictory { get; set; }
-        }
-
         private readonly MusicService _musicService;
         private readonly HcaNameService _hcaNameService;
+        private readonly DefaultTagsService _defaultTagsService;
         private readonly string _battleMusicPmePath;
-        private readonly string _defaultTagsPath;
         private List<string> _allHcaFiles;
 
         private readonly Color _personaBlue = Color.FromArgb(43, 87, 151);
@@ -52,12 +30,12 @@ namespace BGMSelector
         private CheckedListBox lstNormal, lstAdvantage, lstDisadvantage, lstVictory;
         private Button btnSave, btnCancel;
 
-        public BattleMusicForm(MusicService musicService, HcaNameService hcaNameService, string battleMusicPmePath, string defaultTagsPath = null)
+        public BattleMusicForm(MusicService musicService, HcaNameService hcaNameService, DefaultTagsService defaultTagsService, string battleMusicPmePath)
         {
             _musicService = musicService;
             _hcaNameService = hcaNameService;
+            _defaultTagsService = defaultTagsService;
             _battleMusicPmePath = battleMusicPmePath;
-            _defaultTagsPath = defaultTagsPath;
 
             InitializeComponent();
             PopulateHcaLists();
@@ -197,74 +175,7 @@ namespace BGMSelector
 
         private void PopulateHcaLists()
         {
-            var defaultTags = new DefaultTagsConfig 
-            { 
-                DefaultBattle = new List<DefaultTrackInfo>(), 
-                DefaultVictory = new List<DefaultTrackInfo>(),
-                CustomBattle = new List<DefaultTrackInfo>(),
-                CustomVictory = new List<DefaultTrackInfo>()
-            };
-
-            try
-            {
-                // Try multiple locations for default_tags.json
-                string baseDir = Path.GetDirectoryName(Application.ExecutablePath) ?? "";
-                Console.WriteLine($"Base directory: {baseDir}");
-                
-                if (Path.GetFileName(baseDir) == "build")
-                {
-                    baseDir = Path.GetDirectoryName(baseDir) ?? "";
-                    Console.WriteLine($"Adjusted base directory: {baseDir}");
-                }
-                
-                // Try multiple possible paths
-                string[] possiblePaths = {
-                    Path.Combine(baseDir, "BGME", "default_tags.json"),
-                    Path.Combine(baseDir, "default_tags.json"),
-                    Path.Combine(baseDir, "..", "BGME", "default_tags.json")
-                };
-                
-                string tagsPath = null;
-                foreach (var path in possiblePaths)
-                {
-                    Console.WriteLine($"Checking path: {path}");
-                    if (File.Exists(path))
-                    {
-                        tagsPath = path;
-                        Console.WriteLine($"Found default_tags.json at: {tagsPath}");
-                        break;
-                    }
-                }
-
-                if (tagsPath != null && File.Exists(tagsPath))
-                {
-                    var json = File.ReadAllText(tagsPath);
-                    Console.WriteLine($"JSON content: {json}");
-                    
-                    defaultTags = JsonSerializer.Deserialize<DefaultTagsConfig>(json);
-                    Console.WriteLine($"Loaded default tags: {defaultTags.DefaultBattle.Count} battle tracks, {defaultTags.DefaultVictory.Count} victory tracks");
-                    Console.WriteLine($"Loaded custom tags: {defaultTags.CustomBattle?.Count ?? 0} battle tracks, {defaultTags.CustomVictory?.Count ?? 0} victory tracks");
-                    
-                    // Debug output to verify default tags are loaded correctly
-                    foreach (var item in defaultTags.DefaultBattle)
-                    {
-                        if (item.Id.HasValue)
-                            Console.WriteLine($"Default Battle ID: {item.Id}, Name: {item.DisplayName}");
-                        else
-                            Console.WriteLine($"Default Battle File: {item.File}, Name: {item.DisplayName}");
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Default tags file not found in any location");
-                    MessageBox.Show("Default tags file not found. Please make sure default_tags.json exists in the BGME folder.", "File Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Could not load default_tags.json: {ex.Message}");
-                MessageBox.Show($"Error loading default_tags.json: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            var defaultTags = _defaultTagsService.GetConfig();
 
             // Separate default tracks with files from those with just IDs
             var defaultBattleFiles = defaultTags.DefaultBattle

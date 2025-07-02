@@ -1,4 +1,4 @@
-const normalBgm = random_song([30999, 39999, 30123, 36781])
+const normalBgm = random_song([30999, 39999, 30123, 36781, 37952, 38103, 38888, 12222])
 const advantageBgm = random_song([32588, 30789, 30999])
 const disadvantageBgm = random_song([32588, 30789, 30999, 35555])
 

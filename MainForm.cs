@@ -11,6 +11,7 @@ namespace BGMSelector
     {
         private readonly MusicService _musicService;
         private readonly HcaNameService _hcaNameService;
+        private readonly DefaultTagsService _defaultTagsService;
         private MusicConfig? _musicConfig;
         private Dictionary<int, string> _currentAssignments = new Dictionary<int, string>();
         private readonly Color _personaBlue = Color.FromArgb(43, 87, 151);
@@ -51,9 +52,28 @@ namespace BGMSelector
             string battleMusicPmePath = Path.Combine(baseDir, "battle_music.pme");
             _hcaFolderPath = Path.Combine(baseDir, "p3r");
             string hcaNamesPath = Path.Combine(baseDir, "hca_names.json");
-            
+            string defaultTagsPath = Path.Combine(baseDir, "BGME", "default_tags.json");
+
+            if (!File.Exists(defaultTagsPath))
+            {
+                string[] possiblePaths = {
+                    Path.Combine(baseDir, "default_tags.json"),
+                    Path.Combine(baseDir, "..", "BGME", "default_tags.json")
+                };
+                
+                foreach (var path in possiblePaths)
+                {
+                    if (File.Exists(path))
+                    {
+                        defaultTagsPath = path;
+                        break;
+                    }
+                }
+            }
+
             _musicService = new MusicService(yamlPath, pmePath, _hcaFolderPath);
             _hcaNameService = new HcaNameService(hcaNamesPath);
+            _defaultTagsService = new DefaultTagsService(defaultTagsPath);
             
             // Create empty battle_music.pme if it doesn't exist
             if (!File.Exists(battleMusicPmePath))
@@ -453,6 +473,11 @@ namespace BGMSelector
                 foreach (var file in hcaFiles)
                 {
                     string displayName = _hcaNameService.GetName(file);
+                    if (displayName == file)
+                    {
+                        displayName = _defaultTagsService.GetDisplayName(file);
+                    }
+
                     if (displayName != file)
                     {
                         hcaFileComboBox.Items.Add($"{displayName} ({file})");
@@ -1966,35 +1991,9 @@ namespace BGMSelector
                 baseDir = Path.GetDirectoryName(baseDir) ?? "";
             }
             string battleMusicPmePath = Path.Combine(baseDir, "battle_music.pme");
-            string defaultTagsPath = Path.Combine(baseDir, "BGME", "default_tags.json");
-            
-            // Check if default_tags.json exists
-            if (!File.Exists(defaultTagsPath))
-            {
-                // Try alternate locations
-                string[] possiblePaths = {
-                    Path.Combine(baseDir, "default_tags.json"),
-                    Path.Combine(baseDir, "..", "BGME", "default_tags.json")
-                };
-                
-                foreach (var path in possiblePaths)
-                {
-                    if (File.Exists(path))
-                    {
-                        defaultTagsPath = path;
-                        break;
-                    }
-                }
-                
-                if (!File.Exists(defaultTagsPath))
-                {
-                    MessageBox.Show("Could not find default_tags.json file. Default game tracks will not be available.", 
-                                    "File Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-            }
             
             // Create and show the battle music form
-            using (var battleMusicForm = new BattleMusicForm(_musicService, _hcaNameService, battleMusicPmePath))
+            using (var battleMusicForm = new BattleMusicForm(_musicService, _hcaNameService, _defaultTagsService, battleMusicPmePath))
             {
                 battleMusicForm.ShowDialog(this);
             }
