@@ -1,0 +1,17 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Bb]uild/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+
+# Temporary files
+*.log
+*.tmp 
