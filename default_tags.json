@@ -1,0 +1,90 @@
+{
+  "defaultBattle": [
+    {
+      "id": 26,
+      "displayName": "Mass Destruction (Default)"
+    },
+    {
+      "id": 128,
+      "displayName": "It's Going Down Now (Default)"
+    },
+    {
+      "file": "32588.hca",
+      "displayName": "The Meaning of Armbands"
+    }
+  ],
+  "defaultVictory": [
+    {
+      "id": 60,
+      "displayName": "After the Battle (Default)"
+    }
+  ],
+  "customBattle": [
+    {
+      "file": "31122.hca",
+      "displayName": "Mass Destruction -Reload-"
+    },
+    {
+      "file": "37952.hca",
+      "displayName": "Wiping All Out (P3D)"
+    },
+    {
+      "file": "38103.hca",
+      "displayName": "Danger Zone (P3P)"
+    },
+    {
+      "file": "39147.hca",
+      "displayName": "Danger Zone C (P3P)"
+    },
+    {
+      "file": "35890.hca",
+      "displayName": "Mass Destruction (P3 Lab)"
+    },
+    {
+      "file": "33456.hca",
+      "displayName": "Mass Destruction (Movie Ver)"
+    },
+    {
+      "file": "34789.hca",
+      "displayName": "Mass Destruction (P3)"
+    },
+    {
+      "file": "35555.hca",
+      "displayName": "Mass Destruction FES"
+    },
+    {
+      "file": "36781.hca",
+      "displayName": "Wiping All Out (P3P)"
+    },
+    {
+      "file": "37201.hca",
+      "displayName": "Light the Fire Up in the Night (DARK HOUR)"
+    },
+    {
+      "file": "38888.hca",
+      "displayName": "The Show is Over (PQ2)"
+    },
+    {
+      "file": "30123.hca",
+      "displayName": "Wait and See (PQ2)"
+    },
+    {
+      "file": "30456.hca",
+      "displayName": "Pull the Trigger (PQ2)"
+    }
+  ],
+  "customVictory": [
+    {
+      "file": "30999.hca",
+      "displayName": "After the Battle (P3)"
+    },
+    {
+      "file": "39999.hca",
+      "displayName": "After the Battle (P3D)"
+    },
+    {
+      "file": "30789.hca",
+      "displayName": "Way To Go (PQ)"
+    }
+  ]
+} 
