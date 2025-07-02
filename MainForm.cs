@@ -13,6 +13,17 @@ namespace BGMSelector
         private readonly Color _darkBackground = Color.FromArgb(30, 30, 30);
         private readonly Color _lightText = Color.FromArgb(240, 240, 240);
 
+        // Control fields
+        private ListView trackListView;
+        private ListView assignmentsListView;
+        private ComboBox hcaFileComboBox;
+        private Label selectedTrackValue;
+        private TextBox searchBox;
+        private ComboBox categoryFilter;
+        private Button assignButton;
+        private Button saveButton;
+        private Button removeButton;
+
         public MainForm()
         {
             InitializeComponent();
@@ -27,6 +38,21 @@ namespace BGMSelector
             
             // Apply Persona theme
             ApplyPersonaTheme();
+        }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(1000, 600);
+            this.Name = "MainForm";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+            this.Text = "Persona 3 Reload - BGM Selector";
+            this.Load += new System.EventHandler(this.MainForm_Load);
+            
+            this.ResumeLayout(false);
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -69,9 +95,6 @@ namespace BGMSelector
         private void InitializePersonaComponents()
         {
             this.SuspendLayout();
-            
-            // Set form size
-            this.ClientSize = new Size(1000, 600);
             
             // Create header panel
             Panel headerPanel = new Panel
@@ -522,16 +545,5 @@ namespace BGMSelector
                 MessageBox.Show("Please select an assignment to remove.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
-        
-        // Control fields
-        private ListView trackListView;
-        private ListView assignmentsListView;
-        private ComboBox hcaFileComboBox;
-        private Label selectedTrackValue;
-        private TextBox searchBox;
-        private ComboBox categoryFilter;
-        private Button assignButton;
-        private Button saveButton;
-        private Button removeButton;
     }
 } 
