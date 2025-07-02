@@ -8,6 +8,7 @@ namespace BGMSelector
     public partial class MainForm : Form
     {
         private readonly MusicService _musicService;
+        private readonly HcaNameService _hcaNameService;
         private MusicConfig? _musicConfig;
         private Dictionary<int, string> _currentAssignments = new Dictionary<int, string>();
         private readonly Color _personaBlue = Color.FromArgb(43, 87, 151);
@@ -28,8 +29,6 @@ namespace BGMSelector
         private Button removeButton;
         private Button refreshHcaButton;
         private Panel dropPanel;
-        private Button bulkAssignButton;
-        private Button bulkRemoveButton;
         private CheckBox enableMultiSelectCheckbox;
 
         public MainForm()
@@ -47,8 +46,10 @@ namespace BGMSelector
             string yamlPath = Path.Combine(baseDir, "music.yaml");
             string pmePath = Path.Combine(baseDir, "global_music.pme");
             _hcaFolderPath = Path.Combine(baseDir, "p3r");
+            string hcaNamesPath = Path.Combine(baseDir, "hca_names.json");
             
             _musicService = new MusicService(yamlPath, pmePath, _hcaFolderPath);
+            _hcaNameService = new HcaNameService(hcaNamesPath);
             
             // Apply Persona theme
             ApplyPersonaTheme();
@@ -128,7 +129,13 @@ namespace BGMSelector
             modifyHcaMenuItem.ForeColor = _lightText;
             modifyHcaMenuItem.Click += ModifyHcaMenuItem_Click;
 
+            ToolStripMenuItem editHcaNameMenuItem = new ToolStripMenuItem("Edit HCA Name...");
+            editHcaNameMenuItem.BackColor = _darkBackground;
+            editHcaNameMenuItem.ForeColor = _lightText;
+            editHcaNameMenuItem.Click += EditHcaNameMenuItem_Click;
+
             actionsMenuItem.DropDownItems.Add(modifyHcaMenuItem);
+            actionsMenuItem.DropDownItems.Add(editHcaNameMenuItem);
             menuStrip.Items.Add(actionsMenuItem);
 
             this.Controls.Add(menuStrip);
@@ -143,8 +150,9 @@ namespace BGMSelector
                 BackColor = _darkBackground
             };
             
-            mainContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            mainContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            // Adjust column ratio to give more space to the right panel
+            mainContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F)); // Left panel (smaller)
+            mainContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F)); // Right panel (larger)
             
             // Left panel - Track selection
             Panel leftPanel = new Panel
@@ -233,182 +241,94 @@ namespace BGMSelector
             assignmentsListView.Columns.Add("Track Name", 200);
             assignmentsListView.Columns.Add("HCA File", 100);
             
-            Panel assignmentControlsPanel = new Panel
+            // --- New Layout for Assignment Controls ---
+            var assignmentControlsLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Bottom,
-                Height = 180, // Increased height for multi-select controls
-                Padding = new Padding(10)
-            };
-            
-            // Create drop panel for HCA files - positioned prominently
-            Panel dropPanel = new Panel
-            {
-                Location = new Point(10, 10),
-                Size = new Size(250, 40),
-                BackColor = Color.FromArgb(35, 35, 35),
-                BorderStyle = BorderStyle.FixedSingle
+                Height = 190, // Increased height slightly
+                Padding = new Padding(10),
+                BackColor = _darkBackground,
+                ColumnCount = 3, // Labels | Inputs | Buttons
+                RowCount = 4
             };
 
-            Label dropLabel = new Label
-            {
-                Text = "Drop HCA files here",
-                ForeColor = Color.Gray,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Dock = DockStyle.Fill,
-                Font = new Font("Arial", 10, FontStyle.Italic)
-            };
+            // Define column styles
+            assignmentControlsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110F));
+            assignmentControlsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            assignmentControlsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160F));
+
+            // Define row styles
+            assignmentControlsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Selected Track
+            assignmentControlsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // HCA Search
+            assignmentControlsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // HCA ComboBox
+            assignmentControlsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F)); // Drop Panel / Checkbox
+
+            // --- Create All Controls with full properties---
+            var selectedTrackLabel = new Label { Text = "Selected Track:", Anchor = AnchorStyles.Left, AutoSize = true, ForeColor = _lightText, TextAlign = ContentAlignment.MiddleLeft };
+            var selectedTrackValue = new Label { Text = "None", Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = _lightText, TextAlign = ContentAlignment.MiddleLeft };
+            var hcaFileLabel = new Label { Text = "HCA File:", Anchor = AnchorStyles.Left, AutoSize = true, ForeColor = _lightText, TextAlign = ContentAlignment.MiddleLeft };
+            var hcaSearchBox = new TextBox { Dock = DockStyle.Fill, PlaceholderText = "Search HCA files...", BackColor = Color.FromArgb(50, 50, 50), ForeColor = _lightText, BorderStyle = BorderStyle.FixedSingle };
+            var hcaFileComboBox = new ComboBox { Dock = DockStyle.Fill, BackColor = Color.FromArgb(50, 50, 50), ForeColor = _lightText, FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
             
+            var dropPanel = new Panel { Dock = DockStyle.Fill, AllowDrop = true, BackColor = Color.FromArgb(35, 35, 35), BorderStyle = BorderStyle.FixedSingle, Margin = new Padding(0, 10, 0, 0) };
+            var dropLabel = new Label { Text = "Drop HCA files here", ForeColor = Color.Gray, TextAlign = ContentAlignment.MiddleCenter, Dock = DockStyle.Fill, Font = new Font("Arial", 8, FontStyle.Italic) };
             dropPanel.Controls.Add(dropLabel);
             
-            // Setup drag & drop for the panel
-            dropPanel.AllowDrop = true;
-            dropPanel.DragEnter += DropPanel_DragEnter;
-            dropPanel.DragDrop += DropPanel_DragDrop;
-            
-            // Refresh HCA files button - next to drop panel
-            Button refreshHcaButton = new Button
-            {
-                Text = "↻",
-                BackColor = Color.FromArgb(60, 60, 60),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location = new Point(270, 10),
-                Size = new Size(40, 40),
-                Font = new Font("Arial", 12, FontStyle.Bold)
-            };
-            
-            refreshHcaButton.Click += RefreshHcaButton_Click;
-            
-            Label selectedTrackLabel = new Label
-            {
-                Text = "Selected Track:",
-                ForeColor = _lightText,
-                Location = new Point(10, 60),
-                Size = new Size(100, 20)
-            };
-            
-            Label selectedTrackValue = new Label
-            {
-                Text = "None",
-                ForeColor = _lightText,
-                Location = new Point(120, 60),
-                Size = new Size(300, 20),
-                AutoEllipsis = true
-            };
-            
-            Label hcaFileLabel = new Label
-            {
-                Text = "HCA File:",
-                ForeColor = _lightText,
-                Location = new Point(10, 90),
-                Size = new Size(100, 20)
+            var enableMultiSelectCheckbox = new CheckBox 
+            { 
+                Text = "Enable Multi-Select", 
+                Font = new Font("Arial", 8F), // Smaller font
+                AutoSize = true, 
+                ForeColor = _lightText, 
+                BackColor = Color.Transparent,
+                Anchor = AnchorStyles.None // Center the checkbox in its cell
             };
 
-            TextBox hcaSearchBox = new TextBox
+            // --- Create Action Buttons Panel ---
+            var actionButtonsPanel = new TableLayoutPanel
             {
-                Location = new Point(120, 90),
-                Size = new Size(200, 25),
-                BackColor = Color.FromArgb(50, 50, 50),
-                ForeColor = _lightText,
-                BorderStyle = BorderStyle.FixedSingle,
-                PlaceholderText = "Search HCA files..."
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 3,
+                Margin = new Padding(10, 0, 0, 0)
             };
+            actionButtonsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            actionButtonsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
+            actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
+            actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
+
+            var saveButton = new Button { Text = "Save", Dock = DockStyle.Fill, BackColor = _personaBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var refreshHcaButton = new Button { Text = "↻", Dock = DockStyle.Fill, BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Arial", 10, FontStyle.Bold) };
+            var assignButton = new Button { Text = "Assign", Dock = DockStyle.Fill, BackColor = _personaBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+            var removeButton = new Button { Text = "Remove", Dock = DockStyle.Fill, BackColor = Color.FromArgb(70, 70, 70), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             
-            ComboBox hcaFileComboBox = new ComboBox
-            {
-                Location = new Point(120, 120),
-                Size = new Size(200, 25),
-                BackColor = Color.FromArgb(50, 50, 50),
-                ForeColor = _lightText,
-                FlatStyle = FlatStyle.Flat,
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
+            actionButtonsPanel.Controls.Add(saveButton, 0, 0);
+            actionButtonsPanel.Controls.Add(refreshHcaButton, 1, 0);
+            actionButtonsPanel.Controls.Add(assignButton, 0, 1);
+            actionButtonsPanel.SetColumnSpan(assignButton, 2);
+            actionButtonsPanel.Controls.Add(removeButton, 0, 2);
+            actionButtonsPanel.SetColumnSpan(removeButton, 2);
+
+            // --- Arrange Main Controls in Layout ---
+            assignmentControlsLayout.Controls.Add(selectedTrackLabel, 0, 0);
+            assignmentControlsLayout.Controls.Add(selectedTrackValue, 1, 0);
             
-            Button assignButton = new Button
-            {
-                Text = "Assign",
-                BackColor = _personaBlue,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location = new Point(330, 120),
-                Size = new Size(80, 25)
-            };
+            assignmentControlsLayout.Controls.Add(hcaFileLabel, 0, 1);
+            assignmentControlsLayout.SetRowSpan(hcaFileLabel, 2);
+            assignmentControlsLayout.Controls.Add(hcaSearchBox, 1, 1);
+            assignmentControlsLayout.Controls.Add(hcaFileComboBox, 1, 2);
             
-            Button saveButton = new Button
-            {
-                Text = "Save Changes",
-                BackColor = _personaBlue,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location = new Point(330, 10),
-                Size = new Size(120, 30)
-            };
+            assignmentControlsLayout.Controls.Add(actionButtonsPanel, 2, 0);
+            assignmentControlsLayout.SetRowSpan(actionButtonsPanel, 3);
             
-            Button removeButton = new Button
-            {
-                Text = "Remove",
-                BackColor = Color.FromArgb(70, 70, 70),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location = new Point(330, 50),
-                Size = new Size(120, 30)
-            };
+            assignmentControlsLayout.Controls.Add(dropPanel, 0, 3);
+            assignmentControlsLayout.SetColumnSpan(dropPanel, 2);
             
-            // Multi-select checkbox
-            CheckBox enableMultiSelectCheckbox = new CheckBox
-            {
-                Text = "Enable Multi-Select",
-                ForeColor = _lightText,
-                Location = new Point(10, 150),
-                Size = new Size(150, 20),
-                BackColor = Color.Transparent,
-                Checked = false
-            };
-            
-            enableMultiSelectCheckbox.CheckedChanged += EnableMultiSelectCheckbox_CheckedChanged;
-            
-            // Bulk operation buttons
-            Button bulkAssignButton = new Button
-            {
-                Text = "Bulk Assign",
-                BackColor = _personaBlue,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location = new Point(170, 150),
-                Size = new Size(100, 25),
-                Enabled = false
-            };
-            
-            Button bulkRemoveButton = new Button
-            {
-                Text = "Bulk Remove",
-                BackColor = Color.FromArgb(70, 70, 70),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location = new Point(280, 150),
-                Size = new Size(100, 25),
-                Enabled = false
-            };
-            
-            bulkAssignButton.Click += BulkAssignButton_Click;
-            bulkRemoveButton.Click += BulkRemoveButton_Click;
-            
-            assignmentControlsPanel.Controls.Add(enableMultiSelectCheckbox);
-            assignmentControlsPanel.Controls.Add(bulkAssignButton);
-            assignmentControlsPanel.Controls.Add(bulkRemoveButton);
-            assignmentControlsPanel.Controls.Add(dropPanel);
-            assignmentControlsPanel.Controls.Add(refreshHcaButton);
-            assignmentControlsPanel.Controls.Add(removeButton);
-            assignmentControlsPanel.Controls.Add(saveButton);
-            assignmentControlsPanel.Controls.Add(assignButton);
-            assignmentControlsPanel.Controls.Add(hcaFileComboBox);
-            assignmentControlsPanel.Controls.Add(hcaSearchBox);
-            assignmentControlsPanel.Controls.Add(hcaFileLabel);
-            assignmentControlsPanel.Controls.Add(selectedTrackValue);
-            assignmentControlsPanel.Controls.Add(selectedTrackLabel);
+            assignmentControlsLayout.Controls.Add(enableMultiSelectCheckbox, 2, 3);
             
             rightPanel.Controls.Add(assignmentsListView);
-            rightPanel.Controls.Add(assignmentControlsPanel);
+            rightPanel.Controls.Add(assignmentControlsLayout);
             rightPanel.Controls.Add(assignmentsLabel);
             
             // Add panels to main container
@@ -431,8 +351,6 @@ namespace BGMSelector
             this.removeButton = removeButton;
             this.refreshHcaButton = refreshHcaButton;
             this.dropPanel = dropPanel;
-            this.bulkAssignButton = bulkAssignButton;
-            this.bulkRemoveButton = bulkRemoveButton;
             this.enableMultiSelectCheckbox = enableMultiSelectCheckbox;
             
             // Wire up events
@@ -446,6 +364,11 @@ namespace BGMSelector
             removeButton.Click += RemoveButton_Click;
             refreshHcaButton.Click += RefreshHcaButton_Click;
             enableMultiSelectCheckbox.CheckedChanged += EnableMultiSelectCheckbox_CheckedChanged;
+            
+            // Wire up drop panel events
+            dropPanel.DragEnter += DropPanel_DragEnter;
+            dropPanel.DragDrop += DropPanel_DragDrop;
+            dropPanel.DragLeave += DropPanel_DragLeave;
             
             this.ResumeLayout(false);
         }
@@ -496,7 +419,15 @@ namespace BGMSelector
                 var hcaFiles = _musicService.GetAvailableHcaFiles();
                 foreach (var file in hcaFiles)
                 {
-                    hcaFileComboBox.Items.Add(file);
+                    string displayName = _hcaNameService.GetName(file);
+                    if (displayName != file)
+                    {
+                        hcaFileComboBox.Items.Add($"{displayName} ({file})");
+                    }
+                    else
+                    {
+                        hcaFileComboBox.Items.Add(file);
+                    }
                 }
                 
                 if (hcaFileComboBox.Items.Count > 0)
@@ -526,7 +457,19 @@ namespace BGMSelector
                 }
                 
                 item.SubItems.Add(trackName);
-                item.SubItems.Add(assignment.Value);
+
+                string hcaFileName = assignment.Value;
+                string hcaDisplayName = _hcaNameService.GetName(hcaFileName);
+                
+                if (hcaDisplayName != hcaFileName)
+                {
+                    item.SubItems.Add($"{hcaDisplayName} ({hcaFileName})");
+                }
+                else
+                {
+                    item.SubItems.Add(hcaFileName);
+                }
+                
                 item.Tag = assignment.Key;
                 
                 assignmentsListView.Items.Add(item);
@@ -565,8 +508,12 @@ namespace BGMSelector
                 {
                     var selectedItem = assignmentsListView.SelectedItems[0];
                     int cueId = (int)selectedItem.Tag;
-                    string hcaFile = selectedItem.SubItems[2].Text;
-                    
+
+                    // Get the actual HCA filename from the assignment dictionary
+                    string hcaFile = _currentAssignments.ContainsKey(cueId) ? _currentAssignments[cueId] : null;
+
+                    if (hcaFile == null) return;
+
                     // Find track by cue ID
                     if (_musicConfig?.Tracks != null)
                     {
@@ -578,10 +525,13 @@ namespace BGMSelector
                         }
                     }
                     
-                    // Select HCA file in combo box
+                    // Select HCA file in combo box by parsing the real filename
                     for (int i = 0; i < hcaFileComboBox.Items.Count; i++)
                     {
-                        if (hcaFileComboBox.Items[i].ToString() == hcaFile)
+                        string itemText = hcaFileComboBox.Items[i].ToString();
+                        string itemFileName = GetHcaFileNameFromComboBoxItem(itemText);
+
+                        if (itemFileName == hcaFile)
                         {
                             hcaFileComboBox.SelectedIndex = i;
                             break;
@@ -615,12 +565,7 @@ namespace BGMSelector
         private void FilterHcaFiles()
         {
             string searchText = hcaSearchBox.Text.ToLower();
-            if (string.IsNullOrEmpty(searchText))
-            {
-                // Restore all HCA files
-                PopulateHcaFiles();
-                return;
-            }
+            string previouslySelectedFile = GetSelectedHcaFileName();
 
             hcaFileComboBox.BeginUpdate();
             hcaFileComboBox.Items.Clear();
@@ -628,23 +573,56 @@ namespace BGMSelector
             try
             {
                 var allHcaFiles = _musicService.GetAvailableHcaFiles();
+                
                 foreach (var file in allHcaFiles)
                 {
-                    if (file.ToLower().Contains(searchText))
+                    string customName = _hcaNameService.GetName(file);
+
+                    // If search text is empty, or if it matches the filename or custom name, add it
+                    if (string.IsNullOrEmpty(searchText) || 
+                        file.ToLower().Contains(searchText) ||
+                        (customName != file && customName.ToLower().Contains(searchText)))
                     {
-                        hcaFileComboBox.Items.Add(file);
+                        if (customName != file)
+                        {
+                            hcaFileComboBox.Items.Add($"{customName} ({file})");
+                        }
+                        else
+                        {
+                            hcaFileComboBox.Items.Add(file);
+                        }
+                    }
+                }
+                
+                // Restore previous selection if possible
+                bool selectionRestored = false;
+                if (previouslySelectedFile != null)
+                {
+                    for (int i = 0; i < hcaFileComboBox.Items.Count; i++)
+                    {
+                        if (GetHcaFileNameFromComboBoxItem(hcaFileComboBox.Items[i].ToString()) == previouslySelectedFile)
+                        {
+                            hcaFileComboBox.SelectedIndex = i;
+                            selectionRestored = true;
+                            break;
+                        }
                     }
                 }
 
-                if (hcaFileComboBox.Items.Count > 0)
+                // If no selection was restored, select the first item.
+                if (!selectionRestored && hcaFileComboBox.Items.Count > 0)
+                {
                     hcaFileComboBox.SelectedIndex = 0;
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error filtering HCA files: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
-            hcaFileComboBox.EndUpdate();
+            finally
+            {
+                hcaFileComboBox.EndUpdate();
+            }
         }
         
         private void FilterTracks()
@@ -682,16 +660,60 @@ namespace BGMSelector
         
         private void AssignButton_Click(object? sender, EventArgs e)
         {
-            if (selectedTrackValue.Tag is MusicTrack track && hcaFileComboBox.SelectedItem != null)
+            string hcaFile = GetSelectedHcaFileName();
+            if (string.IsNullOrEmpty(hcaFile))
             {
-                string hcaFile = hcaFileComboBox.SelectedItem.ToString() ?? "";
-                
-                _currentAssignments[track.CueId] = hcaFile;
-                UpdateAssignmentsList();
+                MessageBox.Show("Please select an HCA file to assign.", "Missing Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int assignedCount = 0;
+
+            if (enableMultiSelectCheckbox.Checked)
+            {
+                // BULK MODE
+                if (trackListView.SelectedItems.Count > 0)
+                {
+                    foreach (ListViewItem item in trackListView.SelectedItems)
+                    {
+                        if (item.Tag is MusicTrack track)
+                        {
+                            _currentAssignments[track.CueId] = hcaFile;
+                            assignedCount++;
+                        }
+                    }
+                }
+                else if (assignmentsListView.SelectedItems.Count > 0)
+                {
+                    foreach (ListViewItem item in assignmentsListView.SelectedItems)
+                    {
+                        int cueId = (int)item.Tag;
+                        _currentAssignments[cueId] = hcaFile;
+                        assignedCount++;
+                    }
+                }
             }
             else
             {
-                MessageBox.Show("Please select both a track and an HCA file.", "Missing Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                // SINGLE MODE
+                if (selectedTrackValue.Tag is MusicTrack track)
+                {
+                    _currentAssignments[track.CueId] = hcaFile;
+                    assignedCount = 1;
+                }
+            }
+
+            if (assignedCount > 0)
+            {
+                UpdateAssignmentsList();
+                string message = assignedCount == 1 
+                    ? "1 assignment updated." 
+                    : $"{assignedCount} assignments updated.";
+                MessageBox.Show(message, "Assign", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show("Please select a track or assignment(s) to process.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
         
@@ -728,17 +750,48 @@ namespace BGMSelector
         
         private void RemoveButton_Click(object? sender, EventArgs e)
         {
-            if (assignmentsListView.SelectedItems.Count > 0)
+            var cueIdsToRemove = new List<int>();
+
+            if (enableMultiSelectCheckbox.Checked)
             {
-                var selectedItem = assignmentsListView.SelectedItems[0];
-                int cueId = (int)selectedItem.Tag;
-                
-                _currentAssignments.Remove(cueId);
-                UpdateAssignmentsList();
+                // BULK MODE
+                if (assignmentsListView.SelectedItems.Count > 0)
+                {
+                    foreach (ListViewItem item in assignmentsListView.SelectedItems)
+                    {
+                        cueIdsToRemove.Add((int)item.Tag);
+                    }
+                }
             }
             else
             {
-                MessageBox.Show("Please select an assignment to remove.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                // SINGLE MODE
+                if (assignmentsListView.SelectedItems.Count > 0)
+                {
+                    cueIdsToRemove.Add((int)assignmentsListView.SelectedItems[0].Tag);
+                }
+            }
+
+            if (cueIdsToRemove.Any())
+            {
+                int removedCount = 0;
+                foreach (int cueId in cueIdsToRemove)
+                {
+                    if (_currentAssignments.Remove(cueId))
+                    {
+                        removedCount++;
+                    }
+                }
+                UpdateAssignmentsList();
+                
+                string message = removedCount == 1 
+                    ? "1 assignment removed." 
+                    : $"{removedCount} assignments removed.";
+                MessageBox.Show(message, "Remove", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show("Please select assignment(s) to remove.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
         
@@ -833,6 +886,12 @@ namespace BGMSelector
             }
         }
         
+        private void DropPanel_DragLeave(object sender, EventArgs e)
+        {
+            // Reset panel color
+            dropPanel.BackColor = Color.FromArgb(35, 35, 35);
+        }
+        
         private void RefreshHcaButton_Click(object sender, EventArgs e)
         {
             try
@@ -869,10 +928,10 @@ namespace BGMSelector
             trackListView.MultiSelect = multiSelectEnabled;
             assignmentsListView.MultiSelect = multiSelectEnabled;
             
-            // Enable/disable bulk operation buttons
-            bulkAssignButton.Enabled = multiSelectEnabled;
-            bulkRemoveButton.Enabled = multiSelectEnabled;
-            
+            // Update button text to reflect the mode
+            assignButton.Text = multiSelectEnabled ? "Assign Selected" : "Assign";
+            removeButton.Text = multiSelectEnabled ? "Remove Selected" : "Remove";
+
             // Update selection status text
             if (!multiSelectEnabled)
             {
@@ -888,104 +947,16 @@ namespace BGMSelector
                 selectedTrackValue.Text = "Multiple selection enabled";
             }
         }
-        
-        private void BulkAssignButton_Click(object? sender, EventArgs e)
-        {
-            if (hcaFileComboBox.SelectedItem == null)
-            {
-                MessageBox.Show("Please select an HCA file to assign.", "Missing Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            
-            string hcaFile = hcaFileComboBox.SelectedItem.ToString() ?? "";
-            int assignedCount = 0;
-            
-            // Check if tracks are selected from the track list
-            if (trackListView.SelectedItems.Count > 0)
-            {
-                foreach (ListViewItem item in trackListView.SelectedItems)
-                {
-                    if (item.Tag is MusicTrack track)
-                    {
-                        _currentAssignments[track.CueId] = hcaFile;
-                        assignedCount++;
-                    }
-                }
-            }
-            // Check if assignments are selected from the assignments list
-            else if (assignmentsListView.SelectedItems.Count > 0)
-            {
-                foreach (ListViewItem item in assignmentsListView.SelectedItems)
-                {
-                    int cueId = (int)item.Tag;
-                    _currentAssignments[cueId] = hcaFile;
-                    assignedCount++;
-                }
-            }
-            else
-            {
-                MessageBox.Show("Please select tracks or assignments to reassign.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            
-            UpdateAssignmentsList();
-            
-            // Show feedback
-            string message = assignedCount == 1 
-                ? "1 track assigned successfully." 
-                : $"{assignedCount} tracks assigned successfully.";
-                
-            MessageBox.Show(message, "Bulk Assign", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-        
-        private void BulkRemoveButton_Click(object? sender, EventArgs e)
-        {
-            if (assignmentsListView.SelectedItems.Count > 0)
-            {
-                int removedCount = 0;
-                
-                // Create a list of items to remove
-                List<int> cueIdsToRemove = new List<int>();
-                
-                foreach (ListViewItem item in assignmentsListView.SelectedItems)
-                {
-                    int cueId = (int)item.Tag;
-                    cueIdsToRemove.Add(cueId);
-                }
-                
-                // Remove the assignments
-                foreach (int cueId in cueIdsToRemove)
-                {
-                    if (_currentAssignments.Remove(cueId))
-                    {
-                        removedCount++;
-                    }
-                }
-                
-                UpdateAssignmentsList();
-                
-                // Show feedback
-                string message = removedCount == 1 
-                    ? "1 assignment removed successfully." 
-                    : $"{removedCount} assignments removed successfully.";
-                    
-                MessageBox.Show(message, "Bulk Remove", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            else
-            {
-                MessageBox.Show("Please select assignment(s) to remove.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
 
         private void ModifyHcaMenuItem_Click(object? sender, EventArgs e)
         {
-            if (hcaFileComboBox.SelectedItem == null)
+            string hcaFile = GetSelectedHcaFileName();
+            if (string.IsNullOrEmpty(hcaFile))
             {
                 MessageBox.Show("Please select an HCA file to modify.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
             
-            string hcaFile = hcaFileComboBox.SelectedItem.ToString() ?? "";
             string fullPath = Path.Combine(_hcaFolderPath, hcaFile);
             
             if (!File.Exists(fullPath))
@@ -1263,6 +1234,122 @@ namespace BGMSelector
                     }
                 }
             }
+        }
+
+        private void EditHcaNameMenuItem_Click(object? sender, EventArgs e)
+        {
+            string hcaFile = GetSelectedHcaFileName();
+            if (string.IsNullOrEmpty(hcaFile))
+            {
+                MessageBox.Show("Please select an HCA file to edit its name.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string currentName = _hcaNameService.GetName(hcaFile);
+            if (currentName == hcaFile) currentName = ""; // Show empty if no custom name
+
+            // Show input dialog for new name
+            using (var inputForm = new Form())
+            {
+                inputForm.Width = 400;
+                inputForm.Height = 150;
+                inputForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                inputForm.Text = "Edit HCA Name";
+                inputForm.StartPosition = FormStartPosition.CenterParent;
+                inputForm.BackColor = _darkBackground;
+                inputForm.ForeColor = _lightText;
+                inputForm.MaximizeBox = false;
+                inputForm.MinimizeBox = false;
+                
+                var label = new Label
+                {
+                    Text = $"Enter custom name for {hcaFile}:",
+                    Left = 20,
+                    Top = 20,
+                    Width = 360,
+                    ForeColor = _lightText
+                };
+                
+                var textBox = new TextBox
+                {
+                    Text = currentName,
+                    Left = 20,
+                    Top = 50,
+                    Width = 360,
+                    BackColor = Color.FromArgb(50, 50, 50),
+                    ForeColor = _lightText
+                };
+                
+                var okButton = new Button
+                {
+                    Text = "OK",
+                    Left = 200,
+                    Top = 80,
+                    Width = 80,
+                    BackColor = _personaBlue,
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    DialogResult = DialogResult.OK
+                };
+                
+                var cancelButton = new Button
+                {
+                    Text = "Cancel",
+                    Left = 300,
+                    Top = 80,
+                    Width = 80,
+                    BackColor = Color.FromArgb(70, 70, 70),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    DialogResult = DialogResult.Cancel
+                };
+                
+                inputForm.Controls.Add(label);
+                inputForm.Controls.Add(textBox);
+                inputForm.Controls.Add(okButton);
+                inputForm.Controls.Add(cancelButton);
+                
+                inputForm.AcceptButton = okButton;
+                inputForm.CancelButton = cancelButton;
+                
+                var result = inputForm.ShowDialog();
+                
+                if (result == DialogResult.OK)
+                {
+                    string newCustomName = textBox.Text.Trim();
+                    if (!string.IsNullOrEmpty(newCustomName))
+                    {
+                        _hcaNameService.SetName(hcaFile, newCustomName);
+                    }
+                    else
+                    {
+                        _hcaNameService.RemoveName(hcaFile);
+                    }
+                    PopulateHcaFiles();
+                    UpdateAssignmentsList();
+                    inputForm.DialogResult = DialogResult.OK;
+                }
+            }
+        }
+
+        private string GetHcaFileNameFromComboBoxItem(string itemText)
+        {
+            if (string.IsNullOrEmpty(itemText)) return null;
+
+            if (itemText.Contains('(') && itemText.EndsWith(")"))
+            {
+                int startIndex = itemText.LastIndexOf('(') + 1;
+                return itemText.Substring(startIndex, itemText.Length - startIndex - 1);
+            }
+            return itemText;
+        }
+
+        private string GetSelectedHcaFileName()
+        {
+            if (hcaFileComboBox.SelectedItem == null)
+                return null;
+            
+            return GetHcaFileNameFromComboBoxItem(hcaFileComboBox.SelectedItem.ToString());
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
