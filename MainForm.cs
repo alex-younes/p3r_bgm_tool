@@ -28,11 +28,17 @@ namespace BGMSelector
         {
             InitializeComponent();
             
-            // Use absolute paths to the original files
-            string originalDir = @"C:\Users\alexy\Desktop\games\Reloaded-II\Mods\13122\BGME";
-            string yamlPath = Path.Combine(originalDir, "music.yaml");
-            string pmePath = Path.Combine(originalDir, "global_music.pme");
-            string hcaFolderPath = Path.Combine(originalDir, "p3r");
+            // Use paths relative to the mod root directory
+            string baseDir = Path.GetDirectoryName(Application.ExecutablePath) ?? "";
+            // Go up one directory if running from build folder
+            if (Path.GetFileName(baseDir) == "build")
+            {
+                baseDir = Path.GetDirectoryName(baseDir) ?? "";
+            }
+            
+            string yamlPath = Path.Combine(baseDir, "music.yaml");
+            string pmePath = Path.Combine(baseDir, "global_music.pme");
+            string hcaFolderPath = Path.Combine(baseDir, "p3r");
             
             _musicService = new MusicService(yamlPath, pmePath, hcaFolderPath);
             
