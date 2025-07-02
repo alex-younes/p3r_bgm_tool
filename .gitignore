@@ -1,6 +1,8 @@
 # Build results
 [Bb]in/
 [Oo]bj/
+obj/
+obj/**/*
 [Bb]uild/
 
 # Visual Studio files
@@ -11,6 +13,11 @@
 *.dll
 *.exe
 *.pdb
+*.AssemblyInfo.cs
+*.AssemblyInfoInputs.cache
+*.GeneratedMSBuildEditorConfig.editorconfig
+*.genruntimeconfig.cache
+*FileListAbsolute.txt
 
 # Temporary files
 *.log
