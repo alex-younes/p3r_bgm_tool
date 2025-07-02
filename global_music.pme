@@ -1,12 +1,12 @@
 global_bgm[98]:
-  music = 10500
+  music = bbno$1-800
 end
 
 global_bgm[101]:
-  music = bbno$ - 1-800 (ft. ironmouse)
+  music = bbno$1-800
 end
 
 global_bgm[90]:
-  music = bbno$ - 1-800 (ft. ironmouse)
+  music = bbno$1-800
 end
 
