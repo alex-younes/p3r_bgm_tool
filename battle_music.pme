@@ -1,0 +1,4 @@
+encounter["Normal Battles"]:
+  music = 13311
+  victory_music = 34545
+end

@@ -3,6 +3,7 @@ using BGMSelector.Services;
 using System.ComponentModel;
 using Microsoft.VisualBasic.FileIO; // For RecycleBin operations
 using System.Diagnostics; // For Process
+using System.Text;
 
 namespace BGMSelector
 {
@@ -47,11 +48,26 @@ namespace BGMSelector
             
             string yamlPath = Path.Combine(baseDir, "music.yaml");
             string pmePath = Path.Combine(baseDir, "global_music.pme");
+            string battleMusicPmePath = Path.Combine(baseDir, "battle_music.pme");
             _hcaFolderPath = Path.Combine(baseDir, "p3r");
             string hcaNamesPath = Path.Combine(baseDir, "hca_names.json");
             
             _musicService = new MusicService(yamlPath, pmePath, _hcaFolderPath);
             _hcaNameService = new HcaNameService(hcaNamesPath);
+            
+            // Create empty battle_music.pme if it doesn't exist
+            if (!File.Exists(battleMusicPmePath))
+            {
+                try
+                {
+                    // Create an empty file without comments
+                    File.WriteAllText(battleMusicPmePath, "");
+                }
+                catch
+                {
+                    // Ignore error if we can't create the file
+                }
+            }
             
             // Apply Persona theme
             ApplyPersonaTheme();
@@ -138,9 +154,16 @@ namespace BGMSelector
             converterMenuItem.ForeColor = _lightText;
             converterMenuItem.Click += ConverterMenuItem_Click;
 
+            // Add Random Battle Music menu item
+            ToolStripMenuItem randomBattleMenuItem = new ToolStripMenuItem("Random Battle Music");
+            randomBattleMenuItem.BackColor = _darkBackground;
+            randomBattleMenuItem.ForeColor = _lightText;
+            randomBattleMenuItem.Click += RandomBattleMenuItem_Click;
+
             menuStrip.Items.Add(modifyHcaMenuItem);
             menuStrip.Items.Add(editHcaNameMenuItem);
             menuStrip.Items.Add(converterMenuItem);
+            menuStrip.Items.Add(randomBattleMenuItem);
 
             this.Controls.Add(menuStrip);
             
@@ -1931,6 +1954,651 @@ namespace BGMSelector
             }
             
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        // New method to handle the Random Battle Music menu item click
+        private void RandomBattleMenuItem_Click(object? sender, EventArgs e)
+        {
+            // Create a form for setting up randomized battle music
+            using (var randomBattleForm = new Form())
+            {
+                randomBattleForm.Text = "Random Battle Music";
+                randomBattleForm.ClientSize = new Size(500, 650);
+                randomBattleForm.StartPosition = FormStartPosition.CenterParent;
+                randomBattleForm.BackColor = _darkBackground;
+                randomBattleForm.ForeColor = _lightText;
+                randomBattleForm.Padding = new Padding(10);
+
+                // Main layout
+                TableLayoutPanel mainLayout = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    ColumnCount = 1,
+                    RowCount = 6,
+                    Padding = new Padding(10)
+                };
+                
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 140)); // Battle types
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));  // Context-aware checkbox
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));   // Battle music tracks
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));  // Victory music checkbox
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));   // Victory music tracks
+                mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));  // Buttons
+
+                // Top panel for battle types
+                GroupBox battleTypesGroup = new GroupBox
+                {
+                    Text = "Battle Types",
+                    Dock = DockStyle.Fill,
+                    ForeColor = _lightText,
+                    Padding = new Padding(10)
+                };
+                
+                TableLayoutPanel battleTypesPanel = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    ColumnCount = 1,
+                    RowCount = 3
+                };
+                
+                // Create radio buttons for battle types
+                RadioButton normalBattleRadio = new RadioButton
+                {
+                    Text = "Normal Battles",
+                    Checked = true,
+                    Dock = DockStyle.Fill,
+                    ForeColor = _lightText
+                };
+                
+                RadioButton advantageBattleRadio = new RadioButton
+                {
+                    Text = "Advantage Battles",
+                    Dock = DockStyle.Fill,
+                    ForeColor = _lightText
+                };
+                
+                RadioButton disadvantageBattleRadio = new RadioButton
+                {
+                    Text = "Disadvantage Battles",
+                    Dock = DockStyle.Fill,
+                    ForeColor = _lightText
+                };
+                
+                // Add radio buttons to the battle types panel
+                battleTypesPanel.Controls.Add(normalBattleRadio, 0, 0);
+                battleTypesPanel.Controls.Add(advantageBattleRadio, 0, 1);
+                battleTypesPanel.Controls.Add(disadvantageBattleRadio, 0, 2);
+                
+                // Add the panel to the group box
+                battleTypesGroup.Controls.Add(battleTypesPanel);
+                
+                // Context-aware checkbox
+                CheckBox contextAwareCheckbox = new CheckBox
+                {
+                    Text = "Create context-aware music set (normal/advantage/disadvantage)",
+                    Checked = false,
+                    Dock = DockStyle.Fill,
+                    ForeColor = _lightText,
+                    AutoSize = true
+                };
+                
+                // List of available and selected tracks for battle music
+                GroupBox battleTracksGroup = new GroupBox
+                {
+                    Text = "Select Battle Tracks for Random Rotation",
+                    Dock = DockStyle.Fill,
+                    ForeColor = _lightText,
+                    Padding = new Padding(10)
+                };
+                
+                CheckedListBox battleTrackList = new CheckedListBox
+                {
+                    Dock = DockStyle.Fill,
+                    BackColor = _darkBackground,
+                    ForeColor = _lightText,
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+                
+                // Get all available HCA files
+                var allHcaFiles = _musicService.GetAvailableHcaFiles().OrderBy(f => f).ToList();
+                foreach (var file in allHcaFiles)
+                {
+                    string displayName = _hcaNameService.GetName(file);
+                    battleTrackList.Items.Add(displayName == file ? file : $"{displayName} ({file})");
+                }
+                
+                battleTracksGroup.Controls.Add(battleTrackList);
+                
+                // Victory music checkbox
+                CheckBox includeVictoryMusicCheckbox = new CheckBox
+                {
+                    Text = "Include Random Victory Music",
+                    Checked = false,
+                    Dock = DockStyle.Fill,
+                    ForeColor = _lightText,
+                    AutoSize = true
+                };
+                
+                // List of available and selected tracks for victory music
+                GroupBox victoryTracksGroup = new GroupBox
+                {
+                    Text = "Select Victory Tracks for Random Rotation",
+                    Dock = DockStyle.Fill,
+                    ForeColor = _lightText,
+                    Padding = new Padding(10),
+                    Enabled = false // Initially disabled
+                };
+                
+                CheckedListBox victoryTrackList = new CheckedListBox
+                {
+                    Dock = DockStyle.Fill,
+                    BackColor = _darkBackground,
+                    ForeColor = _lightText,
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+                
+                // Populate victory tracks with the same HCA files
+                foreach (var file in allHcaFiles)
+                {
+                    string displayName = _hcaNameService.GetName(file);
+                    victoryTrackList.Items.Add(displayName == file ? file : $"{displayName} ({file})");
+                }
+                
+                victoryTracksGroup.Controls.Add(victoryTrackList);
+                
+                // Enable/disable victory tracks based on checkbox
+                includeVictoryMusicCheckbox.CheckedChanged += (s, args) => {
+                    victoryTracksGroup.Enabled = includeVictoryMusicCheckbox.Checked;
+                };
+                
+                // Context-aware checkbox handler
+                contextAwareCheckbox.CheckedChanged += (s, args) => {
+                    // If context-aware is enabled, disable the battle type selection
+                    // since we'll be generating a single script for all types
+                    battleTypesGroup.Enabled = !contextAwareCheckbox.Checked;
+                    
+                    // Update the battle tracks group text based on context
+                    if (contextAwareCheckbox.Checked)
+                    {
+                        battleTracksGroup.Text = "Select Normal Battle Tracks for Random Rotation";
+                    }
+                    else
+                    {
+                        battleTracksGroup.Text = "Select Battle Tracks for Random Rotation";
+                    }
+                };
+                
+                // Button panel
+                Panel buttonPanel = new Panel
+                {
+                    Dock = DockStyle.Fill
+                };
+                
+                Button okButton = new Button
+                {
+                    Text = "Apply",
+                    DialogResult = DialogResult.OK,
+                    BackColor = _personaBlue,
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Dock = DockStyle.Right,
+                    Width = 100
+                };
+                
+                Button cancelButton = new Button
+                {
+                    Text = "Cancel",
+                    DialogResult = DialogResult.Cancel,
+                    BackColor = Color.FromArgb(60, 60, 60),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Dock = DockStyle.Right,
+                    Width = 100
+                };
+                
+                buttonPanel.Controls.Add(cancelButton);
+                buttonPanel.Controls.Add(okButton);
+                
+                // Add everything to the main layout
+                mainLayout.Controls.Add(battleTypesGroup, 0, 0);
+                mainLayout.Controls.Add(contextAwareCheckbox, 0, 1);
+                mainLayout.Controls.Add(battleTracksGroup, 0, 2);
+                mainLayout.Controls.Add(includeVictoryMusicCheckbox, 0, 3);
+                mainLayout.Controls.Add(victoryTracksGroup, 0, 4);
+                mainLayout.Controls.Add(buttonPanel, 0, 5);
+                
+                randomBattleForm.Controls.Add(mainLayout);
+                
+                // Handle the dialog result
+                if (randomBattleForm.ShowDialog(this) == DialogResult.OK)
+                {
+                    if (contextAwareCheckbox.Checked)
+                    {
+                        // For context-aware scripts, we need to show additional dialogs
+                        // for advantage and disadvantage music
+                        
+                        // First get the normal battle tracks
+                        var normalBattleHcaFiles = new List<string>();
+                        for (int i = 0; i < battleTrackList.Items.Count; i++)
+                        {
+                            if (battleTrackList.GetItemChecked(i))
+                            {
+                                normalBattleHcaFiles.Add(allHcaFiles[i]);
+                            }
+                        }
+                        
+                        if (normalBattleHcaFiles.Count < 2)
+                        {
+                            MessageBox.Show("You need to select at least 2 tracks for normal battle randomization.", 
+                                "Not Enough Tracks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        
+                        // Now open dialog for advantage battle music
+                        List<string> advantageBattleHcaFiles = GetTracksFromDialog(
+                            "Select Advantage Battle Tracks", 
+                            "Select tracks to randomize for advantage battles (player attacks first):",
+                            allHcaFiles, _hcaNameService);
+                        
+                        if (advantageBattleHcaFiles.Count < 2) return;
+                        
+                        // Now open dialog for disadvantage battle music
+                        List<string> disadvantageBattleHcaFiles = GetTracksFromDialog(
+                            "Select Disadvantage Battle Tracks", 
+                            "Select tracks to randomize for disadvantage battles (enemy attacks first):",
+                            allHcaFiles, _hcaNameService);
+                        
+                        if (disadvantageBattleHcaFiles.Count < 2) return;
+                        
+                        // Get victory music if enabled
+                        List<string>? victoryHcaFiles = null;
+                        if (includeVictoryMusicCheckbox.Checked)
+                        {
+                            victoryHcaFiles = new List<string>();
+                            for (int i = 0; i < victoryTrackList.Items.Count; i++)
+                            {
+                                if (victoryTrackList.GetItemChecked(i))
+                                {
+                                    victoryHcaFiles.Add(allHcaFiles[i]);
+                                }
+                            }
+                            
+                            if (victoryHcaFiles.Count < 2)
+                            {
+                                MessageBox.Show("You need to select at least 2 tracks for victory music randomization.", 
+                                    "Not Enough Tracks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                return;
+                            }
+                        }
+                        
+                        // Generate context-aware script content
+                        string scriptContent = GenerateContextAwareBattleScript(
+                            normalBattleHcaFiles, 
+                            advantageBattleHcaFiles, 
+                            disadvantageBattleHcaFiles, 
+                            victoryHcaFiles);
+                            
+                        ShowScriptPreview(scriptContent);
+                    }
+                    else
+                    {
+                        // Get the selected battle type
+                        string battleType = "Normal Battles";
+                        if (advantageBattleRadio.Checked) battleType = "Advantage Battles";
+                        if (disadvantageBattleRadio.Checked) battleType = "Disadvantage Battles";
+                        
+                        // Get selected battle tracks
+                        var selectedBattleHcaFiles = new List<string>();
+                        for (int i = 0; i < battleTrackList.Items.Count; i++)
+                        {
+                            if (battleTrackList.GetItemChecked(i))
+                            {
+                                selectedBattleHcaFiles.Add(allHcaFiles[i]);
+                            }
+                        }
+                        
+                        if (selectedBattleHcaFiles.Count < 2)
+                        {
+                            MessageBox.Show("You need to select at least 2 battle tracks for randomization.", 
+                                "Not Enough Tracks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        
+                        // Get selected victory tracks if enabled
+                        var selectedVictoryHcaFiles = new List<string>();
+                        if (includeVictoryMusicCheckbox.Checked)
+                        {
+                            for (int i = 0; i < victoryTrackList.Items.Count; i++)
+                            {
+                                if (victoryTrackList.GetItemChecked(i))
+                                {
+                                    selectedVictoryHcaFiles.Add(allHcaFiles[i]);
+                                }
+                            }
+                            
+                            if (selectedVictoryHcaFiles.Count < 2)
+                            {
+                                MessageBox.Show("You need to select at least 2 victory tracks for randomization.", 
+                                    "Not Enough Tracks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                return;
+                            }
+                        }
+                        
+                        // Generate the script content
+                        string scriptContent = GenerateRandomBattleScript(
+                            battleType, 
+                            selectedBattleHcaFiles,
+                            includeVictoryMusicCheckbox.Checked ? selectedVictoryHcaFiles : null);
+                        
+                        ShowScriptPreview(scriptContent);
+                    }
+                }
+            }
+        }
+        
+        private List<string> GetTracksFromDialog(string title, string prompt, List<string> allHcaFiles, HcaNameService hcaNameService)
+        {
+            var selectedFiles = new List<string>();
+            
+            using (var dialog = new Form())
+            {
+                dialog.Text = title;
+                dialog.ClientSize = new Size(450, 400);
+                dialog.StartPosition = FormStartPosition.CenterParent;
+                dialog.BackColor = _darkBackground;
+                dialog.ForeColor = _lightText;
+                dialog.Padding = new Padding(10);
+                
+                TableLayoutPanel layout = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    ColumnCount = 1,
+                    RowCount = 3,
+                    Padding = new Padding(10)
+                };
+                
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40)); // Label
+                layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // List
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40)); // Buttons
+                
+                Label promptLabel = new Label
+                {
+                    Text = prompt,
+                    Dock = DockStyle.Fill,
+                    ForeColor = _lightText
+                };
+                
+                CheckedListBox trackList = new CheckedListBox
+                {
+                    Dock = DockStyle.Fill,
+                    BackColor = _darkBackground,
+                    ForeColor = _lightText,
+                    BorderStyle = BorderStyle.FixedSingle
+                };
+                
+                foreach (var file in allHcaFiles)
+                {
+                    string displayName = hcaNameService.GetName(file);
+                    trackList.Items.Add(displayName == file ? file : $"{displayName} ({file})");
+                }
+                
+                Panel buttonPanel = new Panel
+                {
+                    Dock = DockStyle.Fill
+                };
+                
+                Button okButton = new Button
+                {
+                    Text = "OK",
+                    DialogResult = DialogResult.OK,
+                    BackColor = _personaBlue,
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Dock = DockStyle.Right,
+                    Width = 100
+                };
+                
+                Button cancelButton = new Button
+                {
+                    Text = "Cancel",
+                    DialogResult = DialogResult.Cancel,
+                    BackColor = Color.FromArgb(60, 60, 60),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Dock = DockStyle.Right,
+                    Width = 100
+                };
+                
+                buttonPanel.Controls.Add(cancelButton);
+                buttonPanel.Controls.Add(okButton);
+                
+                layout.Controls.Add(promptLabel, 0, 0);
+                layout.Controls.Add(trackList, 0, 1);
+                layout.Controls.Add(buttonPanel, 0, 2);
+                
+                dialog.Controls.Add(layout);
+                
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    for (int i = 0; i < trackList.Items.Count; i++)
+                    {
+                        if (trackList.GetItemChecked(i))
+                        {
+                            selectedFiles.Add(allHcaFiles[i]);
+                        }
+                    }
+                    
+                    if (selectedFiles.Count < 2)
+                    {
+                        MessageBox.Show("You need to select at least 2 tracks for randomization.", 
+                            "Not Enough Tracks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return new List<string>();
+                    }
+                }
+            }
+            
+            return selectedFiles;
+        }
+        
+        private void ShowScriptPreview(string scriptContent)
+        {
+            using (var previewForm = new Form())
+            {
+                previewForm.Text = "Generated Script Preview";
+                previewForm.ClientSize = new Size(500, 300);
+                previewForm.StartPosition = FormStartPosition.CenterParent;
+                previewForm.BackColor = _darkBackground;
+                previewForm.ForeColor = _lightText;
+                previewForm.Padding = new Padding(10);
+                
+                TextBox scriptTextBox = new TextBox
+                {
+                    Multiline = true,
+                    ReadOnly = true,
+                    Dock = DockStyle.Fill,
+                    BackColor = Color.FromArgb(40, 40, 40),
+                    ForeColor = _lightText,
+                    Text = scriptContent
+                };
+                
+                // Create a panel for buttons
+                Panel buttonPanel = new Panel
+                {
+                    Dock = DockStyle.Bottom,
+                    Height = 40
+                };
+                
+                Button saveScriptButton = new Button
+                {
+                    Text = "Save to File...",
+                    BackColor = _personaBlue,
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Dock = DockStyle.Right,
+                    Width = 120
+                };
+                
+                Button applyButton = new Button
+                {
+                    Text = "Apply to Game",
+                    BackColor = Color.FromArgb(60, 100, 60),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Dock = DockStyle.Right,
+                    Width = 120,
+                    Margin = new Padding(0, 0, 10, 0)
+                };
+                
+                saveScriptButton.Click += (s, args) =>
+                {
+                    using (var saveDialog = new SaveFileDialog())
+                    {
+                        saveDialog.Filter = "Persona Music Script|*.pme";
+                        saveDialog.Title = "Save Battle Music Script";
+                        saveDialog.InitialDirectory = Path.GetDirectoryName(Application.ExecutablePath);
+                        
+                        if (saveDialog.ShowDialog() == DialogResult.OK)
+                        {
+                            File.WriteAllText(saveDialog.FileName, scriptContent);
+                            MessageBox.Show($"Script saved to {saveDialog.FileName}", "Script Saved", 
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                };
+                
+                applyButton.Click += (s, args) =>
+                {
+                    try
+                    {
+                        // Get the path to the battle_music.pme file
+                        string baseDir = Path.GetDirectoryName(Application.ExecutablePath) ?? "";
+                        // Go up one directory if running from build folder
+                        if (Path.GetFileName(baseDir) == "build")
+                        {
+                            baseDir = Path.GetDirectoryName(baseDir) ?? "";
+                        }
+                        
+                        string battleMusicPmePath = Path.Combine(baseDir, "battle_music.pme");
+                        
+                        // Save the script content to the file
+                        File.WriteAllText(battleMusicPmePath, scriptContent);
+                        
+                        // Show success message
+                        MessageBox.Show($"Random battle music settings applied successfully!\n\nThe script has been saved to {battleMusicPmePath} and will be loaded automatically when the game starts.", 
+                            "Settings Applied", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        
+                        // Close the preview form
+                        previewForm.DialogResult = DialogResult.OK;
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Error applying settings: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                };
+                
+                buttonPanel.Controls.Add(saveScriptButton);
+                buttonPanel.Controls.Add(applyButton);
+                
+                previewForm.Controls.Add(scriptTextBox);
+                previewForm.Controls.Add(buttonPanel);
+                
+                previewForm.ShowDialog(this);
+            }
+        }
+        
+        private string GenerateContextAwareBattleScript(
+            List<string> normalBattleHcaFiles, 
+            List<string> advantageBattleHcaFiles, 
+            List<string> disadvantageBattleHcaFiles, 
+            List<string>? victoryHcaFiles = null)
+        {
+            StringBuilder sb = new StringBuilder();
+            
+            // Extract track IDs from filenames
+            var normalTrackIds = normalBattleHcaFiles
+                .Select(f => Path.GetFileNameWithoutExtension(f))
+                .ToList();
+                
+            var advantageTrackIds = advantageBattleHcaFiles
+                .Select(f => Path.GetFileNameWithoutExtension(f))
+                .ToList();
+                
+            var disadvantageTrackIds = disadvantageBattleHcaFiles
+                .Select(f => Path.GetFileNameWithoutExtension(f))
+                .ToList();
+            
+            // Generate constants for each battle state
+            sb.AppendLine($"const normalBgm = random_song([{string.Join(", ", normalTrackIds)}])");
+            sb.AppendLine($"const advantageBgm = random_song([{string.Join(", ", advantageTrackIds)}])");
+            sb.AppendLine($"const disadvantageBgm = random_song([{string.Join(", ", disadvantageTrackIds)}])");
+            
+            // Generate victory music if included
+            if (victoryHcaFiles != null && victoryHcaFiles.Count > 0)
+            {
+                var victoryTrackIds = victoryHcaFiles
+                    .Select(f => Path.GetFileNameWithoutExtension(f))
+                    .ToList();
+                
+                sb.AppendLine($"const victoryBgm = random_song([{string.Join(", ", victoryTrackIds)}])");
+            }
+            
+            sb.AppendLine();
+            sb.AppendLine("encounter[\"Normal Battles\"]:");
+            sb.AppendLine("  music = battle_bgm(normalBgm, advantageBgm, disadvantageBgm)");
+            
+            // Add victory music if included, otherwise don't specify it to use the default
+            if (victoryHcaFiles != null && victoryHcaFiles.Count > 0)
+            {
+                sb.AppendLine("  victory_music = victoryBgm");
+            }
+            
+            sb.AppendLine("end");
+            
+            return sb.ToString();
+        }
+        
+        private string GenerateRandomBattleScript(string battleType, List<string> battleHcaFiles, List<string>? victoryHcaFiles = null)
+        {
+            StringBuilder sb = new StringBuilder();
+            
+            // Extract numbers from battle HCA files (assuming file names like "12345.hca")
+            var battleTrackIds = battleHcaFiles
+                .Select(f => Path.GetFileNameWithoutExtension(f))
+                .ToList();
+            
+            // Generate a random constant name based on the battle type
+            string battleConstName = battleType.ToLower().Replace(" ", "") + "Bgm";
+            
+            // Generate the random_song line for battle music
+            sb.AppendLine($"const {battleConstName} = random_song([{string.Join(", ", battleTrackIds)}])");
+            
+            // If victory music is included, generate a constant for it too
+            if (victoryHcaFiles != null && victoryHcaFiles.Count > 0)
+            {
+                var victoryTrackIds = victoryHcaFiles
+                    .Select(f => Path.GetFileNameWithoutExtension(f))
+                    .ToList();
+                
+                string victoryConstName = battleType.ToLower().Replace(" ", "") + "VictoryBgm";
+                sb.AppendLine($"const {victoryConstName} = random_song([{string.Join(", ", victoryTrackIds)}])");
+            }
+            
+            sb.AppendLine();
+            
+            // Generate the encounter block
+            sb.AppendLine($"encounter[\"{battleType}\"]:");
+            sb.AppendLine($"  music = {battleConstName}");
+            
+            // Add victory music if included, otherwise don't specify it to use the default
+            if (victoryHcaFiles != null && victoryHcaFiles.Count > 0)
+            {
+                string victoryConstName = battleType.ToLower().Replace(" ", "") + "VictoryBgm";
+                sb.AppendLine($"  victory_music = {victoryConstName}");
+            }
+            
+            sb.AppendLine("end");
+            
+            return sb.ToString();
         }
     }
 } 

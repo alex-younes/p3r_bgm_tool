@@ -1,8 +1,8 @@
-global_bgm[98]:
-  music = random_song([1222, 98])
+global_bgm[101]:
+  music = 34545
 end
 
-global_bgm[101]:
-  music = random_song([1222, 101])
+global_bgm[98]:
+  music = 34545
 end
 

@@ -10,6 +10,7 @@ namespace BGMSelector.Services
     {
         private readonly string _yamlPath;
         private readonly string _pmePath;
+        private readonly string _battleMusicPmePath;
         private readonly string _hcaFolderPath;
         private Dictionary<int, RandomizedTrack> _randomizedTracks = new Dictionary<int, RandomizedTrack>();
         private MusicConfig? _musicConfigCache;
@@ -19,6 +20,10 @@ namespace BGMSelector.Services
             _yamlPath = yamlPath;
             _pmePath = pmePath;
             _hcaFolderPath = hcaFolderPath;
+            
+            // Set the path for battle_music.pme in the same directory
+            string baseDir = Path.GetDirectoryName(pmePath) ?? "";
+            _battleMusicPmePath = Path.Combine(baseDir, "battle_music.pme");
         }
 
         public MusicConfig LoadMusicConfig()
@@ -116,7 +121,10 @@ namespace BGMSelector.Services
                     }
                 }
 
+                // Write the global music PME file
                 File.WriteAllText(_pmePath, sb.ToString());
+                
+                // No need to create a combined file - the mod loads both PME files automatically
             }
             catch (Exception ex)
             {
