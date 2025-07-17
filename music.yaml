@@ -405,196 +405,196 @@ tracks:
 - name: Living With Determination (alternate)
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 77
   output_path: Ryo/P3R/link_200_070_A.hca
   encoder: HCA (Persona 3 Reload)
-- name: Unknown
+- name: Station Outskirts
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 94
   output_path: Ryo/P3R/link_190_190_A.hca
   encoder: HCA (Persona 3 Reload)
 - name: I Will Protect You -Reload-
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 98
   output_path: Ryo/P3R/link_220_040_A.hca
   encoder: HCA (Persona 3 Reload)
-- name: Victory (Again)
+- name: Results (Persona 4)
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1027
   output_path: Ryo/P3R/Sound_Result_04.hca
   encoder: HCA (Persona 3 Reload)
-- name: Victory
+- name: Victory (Persona 5)
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1011
   output_path: Ryo/P3R/Sound_Result_02.hca
   encoder: HCA (Persona 3 Reload)
-- name: Period (Again)
+- name: Results (Persona 4)
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1005
   output_path: Ryo/P3R/Sound_Result_03.hca
   encoder: HCA (Persona 3 Reload)
-- name: Period
+- name: Victory (Persona 5)
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1037
   output_path: Ryo/P3R/Sound_Result_01.hca
   encoder: HCA (Persona 3 Reload)
 - name: Blooming Villain
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1036
   output_path: Ryo/P3R/Sound_36.hca
   encoder: HCA (Persona 3 Reload)
-- name: Will Power
+- name: Keeper of Lust
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1035
   output_path: Ryo/P3R/Sound_35.hca
   encoder: HCA (Persona 3 Reload)
 - name: I Believe
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1034
   output_path: Ryo/P3R/Sound_34
   encoder: HCA (Persona 3 Reload)
 - name: Gentle Madman
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1033
   output_path: Ryo/P3R/Sound_33.hca
   encoder: HCA (Persona 3 Reload)
 - name: Kichijoji 199X
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1032
   output_path: Ryo/P3R/Sound_32.hca
   encoder: HCA (Persona 3 Reload)
 - name: Beneath The Mask
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1031
   output_path: Ryo/P3R/Sound_31.hca
   encoder: HCA (Persona 3 Reload)
 - name: Life Will Change
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1030
   output_path: Ryo/P3R/Sound_30.hca
   encoder: HCA (Persona 3 Reload)
 - name: The Almighty
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1026
   output_path: Ryo/P3R/Sound_26.hca
   encoder: HCA (Persona 3 Reload)
-- name: I'll Face Myself (Mitsuo)
+- name: SHIN MITSUO TENSEI
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1025
   output_path: Ryo/P3R/Sound_25.hca
   encoder: HCA (Persona 3 Reload)
 - name: Long Way
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1024
   output_path: Ryo/P3R/Sound_24.hca
   encoder: HCA (Persona 3 Reload)
 - name: Heaven
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1023
   output_path: Ryo/P3R/Sound_23.hca
   encoder: HCA (Persona 3 Reload)
 - name: Junes Theme
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1022
   output_path: Ryo/P3R/Sound_22.hca
   encoder: HCA (Persona 3 Reload)
-- name: Shin Mitsuo Tensei
+- name: Game
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1021
   output_path: Ryo/P3R/Sound_21.hca
   encoder: HCA (Persona 3 Reload)
 - name: Backside of The TV
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1020
   output_path: Ryo/P3R/Sound_20.hca
   encoder: HCA (Persona 3 Reload)
-- name: Throw Your Mask Away
+- name: Throw Away Your Mask
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1010
   output_path: Ryo/P3R/Sound_10.hca
   encoder: HCA (Persona 3 Reload)
-- name: Yaldabaoth
+- name: Jaldabaoth
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1009
   output_path: Ryo/P3R/Sound_09.hca
   encoder: HCA (Persona 3 Reload)
-- name: Rivers In The Desert
+- name: River in the Desert
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1008
   output_path: Ryo/P3R/Sound_08.hca
   encoder: HCA (Persona 3 Reload)
 - name: Take Over
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1007
   output_path: Ryo/P3R/Sound_07.hca
   encoder: HCA (Persona 3 Reload)
 - name: Last Surprise
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1006
   output_path: Ryo/P3R/Sound_06.hca
   encoder: HCA (Persona 3 Reload)
-- name: Fog/Mist
+- name: The Fog
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1004
   output_path: Ryo/P3R/Sound_05.hca
   encoder: HCA (Persona 3 Reload)
 - name: A New World Fool
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1003
   output_path: Ryo/P3R/Sound_04.hca
   encoder: HCA (Persona 3 Reload)
 - name: I'll Face Myself -Battle-
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1002
   output_path: Ryo/P3R/Sound_03.hca
   encoder: HCA (Persona 3 Reload)
 - name: Time To Make History
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1001
   output_path: Ryo/P3R/Sound_02.hca
   encoder: HCA (Persona 3 Reload)
 - name: Reach Out To The Truth
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 1000
   output_path: Ryo/P3R/Sound_01.hca
   encoder: HCA (Persona 3 Reload)
 - name: Persona Invocation
   category: ''
   tags: []
-  cue_id: -1
+  cue_id: 102
   output_path: Ryo/P3R/link_100_285_A.hca
   encoder: HCA (Persona 3 Reload)
-- name: Late Arrival
+- name: The Beginning -Reload-
   category: ''
   tags: []
   cue_id: -1

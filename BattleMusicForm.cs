@@ -18,6 +18,7 @@ namespace BGMSelector
         private readonly HcaNameService _hcaNameService;
         private readonly DefaultTagsService _defaultTagsService;
         private readonly string _battleMusicPmePath;
+        private readonly string _bossMusicPmePath;
         private List<string> _allHcaFiles;
 
         private readonly Color _personaBlue = Color.FromArgb(43, 87, 151);
@@ -25,9 +26,9 @@ namespace BGMSelector
         private readonly Color _lightText = Color.FromArgb(240, 240, 240);
 
         // UI Controls
-        private GroupBox grpNormal, grpAdvantage, grpDisadvantage, grpVictory;
-        private RadioButton radNormalSingle, radNormalRandom, radAdvantageSingle, radAdvantageRandom, radDisadvantageSingle, radDisadvantageRandom, radVictorySingle, radVictoryRandom;
-        private CheckedListBox lstNormal, lstAdvantage, lstDisadvantage, lstVictory;
+        private GroupBox grpNormal, grpAdvantage, grpDisadvantage, grpBoss, grpVictory;
+        private RadioButton radNormalSingle, radNormalRandom, radAdvantageSingle, radAdvantageRandom, radDisadvantageSingle, radDisadvantageRandom, radBossSingle, radBossRandom, radVictorySingle, radVictoryRandom;
+        private CheckedListBox lstNormal, lstAdvantage, lstDisadvantage, lstBoss, lstVictory;
         private Button btnSave, btnCancel;
 
         public BattleMusicForm(MusicService musicService, HcaNameService hcaNameService, DefaultTagsService defaultTagsService, string battleMusicPmePath)
@@ -36,6 +37,7 @@ namespace BGMSelector
             _hcaNameService = hcaNameService;
             _defaultTagsService = defaultTagsService;
             _battleMusicPmePath = battleMusicPmePath;
+            _bossMusicPmePath = Path.Combine(Path.GetDirectoryName(battleMusicPmePath) ?? string.Empty, "boss_music.pme");
 
             InitializeComponent();
             PopulateHcaLists();
@@ -44,13 +46,18 @@ namespace BGMSelector
 
         private void InitializeComponent()
         {
-            this.Text = "Custom Battle Music Editor";
-            this.ClientSize = new Size(800, 600);
-            this.StartPosition = FormStartPosition.CenterParent;
+            this.SuspendLayout();
+            // 
+            // BattleMusicForm
+            // 
+            this.ClientSize = new System.Drawing.Size(1200, 800); // Increased window size
+            this.Name = "BattleMusicForm";
+            this.Text = "Battle Music Editor";
+            this.Icon = new System.Drawing.Icon("Resources/persona_icon.ico");
             this.BackColor = _darkBackground;
             this.ForeColor = _lightText;
-            this.Padding = new Padding(10);
-            this.Font = new Font("Arial", 9F, FontStyle.Regular);
+            this.Padding = new Padding(10); // Add padding around the form content
+            this.ResumeLayout(false);
 
             var mainLayout = new TableLayoutPanel
             {
@@ -68,11 +75,16 @@ namespace BGMSelector
             grpNormal = CreateMusicGroup("Normal Battle", out lstNormal, out radNormalSingle, out radNormalRandom);
             grpAdvantage = CreateMusicGroup("Advantage Battle", out lstAdvantage, out radAdvantageSingle, out radAdvantageRandom);
             grpDisadvantage = CreateMusicGroup("Disadvantage Battle", out lstDisadvantage, out radDisadvantageSingle, out radDisadvantageRandom);
+            grpBoss = CreateMusicGroup("Boss Battle", out lstBoss, out radBossSingle, out radBossRandom);
             grpVictory = CreateMusicGroup("Victory", out lstVictory, out radVictorySingle, out radVictoryRandom);
 
-            mainLayout.Controls.Add(grpNormal, 0, 0);
-            mainLayout.Controls.Add(grpAdvantage, 1, 0);
-            mainLayout.Controls.Add(grpDisadvantage, 0, 1);
+            // Hide the Normal Battle group so the user cannot modify it
+            grpNormal.Visible = false;
+
+            // Re-arrange the visible groups (Advantage, Disadvantage, Boss, Victory)
+            mainLayout.Controls.Add(grpAdvantage, 0, 0);
+            mainLayout.Controls.Add(grpDisadvantage, 1, 0);
+            mainLayout.Controls.Add(grpBoss, 0, 1);
             mainLayout.Controls.Add(grpVictory, 1, 1);
 
             // Button Panel
@@ -103,19 +115,47 @@ namespace BGMSelector
                 Margin = new Padding(5)
             };
 
-            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            // Main layout: 1 column, 2 rows (options, list)
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                RowCount = 2,
+                ColumnCount = 1,
+            };
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40)); // Increased height for options row
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // List takes remaining space
 
-            var optionsPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
-            optionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            optionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            // Panel for top-row options: 1 row, 3 columns (single, random, clear)
+            var optionsPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount = 1,
+                Margin = new Padding(0, 0, 0, 6) // Add space below the options row
+            };
+            optionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            optionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            optionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
-            var createdSingle = new RadioButton { Text = "Single Track", Checked = true, Dock = DockStyle.Fill, ForeColor = _lightText };
-            var createdRandom = new RadioButton { Text = "Random Tracks", Dock = DockStyle.Fill, ForeColor = _lightText };
-            optionsPanel.Controls.Add(createdSingle, 0, 0);
-            optionsPanel.Controls.Add(createdRandom, 1, 0);
+            var createdSingle = new RadioButton { Text = "Single Track", Checked = true, ForeColor = _lightText, AutoSize = true };
+            createdSingle.Margin = new Padding(3, 3, 15, 3); // Add space to the right
 
+            var createdRandom = new RadioButton { Text = "Random", ForeColor = _lightText, AutoSize = true };
+            
+            var btnClear = new Button 
+            { 
+                Text = "Clear", 
+                Dock = DockStyle.Right,
+                Size = new Size(90, 30),
+                BackColor = Color.FromArgb(70, 70, 70), 
+                ForeColor = _lightText, 
+                FlatStyle = FlatStyle.Flat,
+                Margin = new Padding(15, 0, 0, 0) // Gap before button
+            };
+            btnClear.FlatAppearance.BorderSize = 1;
+            btnClear.FlatAppearance.BorderColor = Color.FromArgb(100, 100, 100);
+
+            // List must be created before Clear button so the lambda can reference it safely
             var createdList = new CheckedListBox
             {
                 Dock = DockStyle.Fill,
@@ -123,39 +163,46 @@ namespace BGMSelector
                 ForeColor = _lightText,
                 BorderStyle = BorderStyle.FixedSingle,
                 CheckOnClick = true,
-                SelectionMode = SelectionMode.One
+                SelectionMode = SelectionMode.One,
+                IntegralHeight = false // Prevents weird height changes
             };
-            
+
+            // Clear button logic – uncheck everything in the list
+            btnClear.Click += (s, e) => {
+                for (int i = 0; i < createdList.Items.Count; i++)
+                {
+                    createdList.SetItemChecked(i, false);
+                }
+            };
+
+            // Add controls to the options panel
+            optionsPanel.Controls.Add(createdSingle, 0, 0);
+            optionsPanel.Controls.Add(createdRandom, 1, 0);
+            optionsPanel.Controls.Add(btnClear, 2, 0);
+
+            // Add panels to the main layout
             layout.Controls.Add(optionsPanel, 0, 0);
             layout.Controls.Add(createdList, 0, 1);
             group.Controls.Add(layout);
 
-            // Event Handlers
+            // Event Handlers for single-select mode
             createdSingle.CheckedChanged += (s, e) =>
             {
                 if (createdSingle.Checked)
                 {
-                    // When switching to single-select, ensure only one item is checked.
                     int? firstChecked = null;
                     for (int i = 0; i < createdList.Items.Count; i++)
                     {
                         if (createdList.GetItemChecked(i))
                         {
-                            if (firstChecked == null)
-                            {
-                                firstChecked = i;
-                            }
-                            else
-                            {
-                                createdList.SetItemChecked(i, false);
-                            }
+                            if (firstChecked == null) firstChecked = i;
+                            else createdList.SetItemChecked(i, false);
                         }
                     }
                 }
             };
 
             createdList.ItemCheck += (s, e) => {
-                // If in single-select mode and a new item is checked, uncheck others.
                 if (createdSingle.Checked && e.NewValue == CheckState.Checked)
                 {
                     for (int i = 0; i < createdList.Items.Count; i++)
@@ -262,6 +309,7 @@ namespace BGMSelector
             lstNormal.Items.Clear();
             lstAdvantage.Items.Clear();
             lstDisadvantage.Items.Clear();
+            lstBoss.Items.Clear();
             lstVictory.Items.Clear();
 
             // Add all items to the lists - DEFAULT ID TRACKS FIRST
@@ -270,6 +318,7 @@ namespace BGMSelector
                 lstNormal.Items.AddRange(defaultBattleIdItems);
                 lstAdvantage.Items.AddRange(defaultBattleIdItems);
                 lstDisadvantage.Items.AddRange(defaultBattleIdItems);
+                lstBoss.Items.AddRange(defaultBattleIdItems);
             }
             else
             {
@@ -289,18 +338,29 @@ namespace BGMSelector
             lstNormal.Items.AddRange(displayItems);
             lstAdvantage.Items.AddRange(displayItems);
             lstDisadvantage.Items.AddRange(displayItems);
+            lstBoss.Items.AddRange(displayItems);
             lstVictory.Items.AddRange(displayItems);
         }
 
         private void LoadConfig()
         {
-            if (!File.Exists(_battleMusicPmePath)) return;
+            if (!File.Exists(_battleMusicPmePath) && !File.Exists(_bossMusicPmePath)) return;
 
-            var content = File.ReadAllText(_battleMusicPmePath);
+            var contentBuilder = new StringBuilder();
+            if (File.Exists(_battleMusicPmePath))
+            {
+                contentBuilder.AppendLine(File.ReadAllText(_battleMusicPmePath));
+            }
+            if (File.Exists(_bossMusicPmePath))
+            {
+                contentBuilder.AppendLine(File.ReadAllText(_bossMusicPmePath));
+            }
+
+            var content = contentBuilder.ToString();
             if (string.IsNullOrWhiteSpace(content)) return;
 
             var parsedConsts = new Dictionary<string, List<string>>();
-            string normalVal = "default", advantageVal = "default", disadvantageVal = "default", victoryVal = "default";
+            string normalVal = "default", advantageVal = "default", disadvantageVal = "default", bossVal = "default", victoryVal = "default";
 
             var songRegex = new Regex(@"""(?<name>.*?)""|(?<name>\w+)");
 
@@ -336,7 +396,7 @@ namespace BGMSelector
                 {
                     // Parse individual music assignments if not using battle_bgm
                     // Parse normal music (music = X)
-                    var normalMusicRegex = new Regex(@"music\s*=\s*(?<normal>[^=\r\n]+)");
+                    var normalMusicRegex = new Regex(@"\bmusic\b\s*=\s*(?<normal>[^=\r\n]+)");
                     var normalMatch = normalMusicRegex.Match(blockContent);
                     if (normalMatch.Success)
                     {
@@ -345,7 +405,7 @@ namespace BGMSelector
                     }
 
                     // Parse advantage_bgm
-                    var advantageRegex = new Regex(@"advantage_bgm\s*=\s*(?<advantage>[^=\r\n]+)");
+                    var advantageRegex = new Regex(@"\badvantage_bgm\b\s*=\s*(?<advantage>[^=\r\n]+)");
                     var advantageMatch = advantageRegex.Match(blockContent);
                     if (advantageMatch.Success)
                     {
@@ -354,7 +414,7 @@ namespace BGMSelector
                     }
 
                     // Parse disadvantage_bgm
-                    var disadvantageRegex = new Regex(@"disadvantage_bgm\s*=\s*(?<disadvantage>[^=\r\n]+)");
+                    var disadvantageRegex = new Regex(@"\bdisadvantage_bgm\b\s*=\s*(?<disadvantage>[^=\r\n]+)");
                     var disadvantageMatch = disadvantageRegex.Match(blockContent);
                     if (disadvantageMatch.Success)
                     {
@@ -364,12 +424,25 @@ namespace BGMSelector
                 }
 
                 // Parse victory_music
-                var victoryRegex = new Regex(@"victory_music\s*=\s*(?<victory>[^=\r\n]+)");
+                var victoryRegex = new Regex(@"\bvictory_music\b\s*=\s*(?<victory>[^=\r\n]+)");
                 var victoryMatch = victoryRegex.Match(blockContent);
                 if (victoryMatch.Success)
                 {
                     victoryVal = NormalizeValue(victoryMatch.Groups["victory"].Value.Trim());
                     System.Diagnostics.Debug.WriteLine($"[BGME] Parsed victory music: {victoryVal}");
+                }
+            }
+
+            // Parse Boss block
+            var bossBlockRegex = new Regex(@"encounter\[""Special Battles""\]:(?<block>.*?)(end|\z)", RegexOptions.Singleline);
+            var bossMatch = bossBlockRegex.Match(content);
+            if (bossMatch.Success)
+            {
+                var bossBlock = bossMatch.Groups["block"].Value;
+                var musicMatch = Regex.Match(bossBlock, @"music\s*=\s*(.+)");
+                if (musicMatch.Success)
+                {
+                    bossVal = musicMatch.Groups[1].Value.Trim();
                 }
             }
 
@@ -380,6 +453,7 @@ namespace BGMSelector
             UpdateGroupUI(normalVal, lstNormal, radNormalSingle, radNormalRandom, parsedConsts);
             UpdateGroupUI(advantageVal, lstAdvantage, radAdvantageSingle, radAdvantageRandom, parsedConsts);
             UpdateGroupUI(disadvantageVal, lstDisadvantage, radDisadvantageSingle, radDisadvantageRandom, parsedConsts);
+            UpdateGroupUI(bossVal, lstBoss, radBossSingle, radBossRandom, parsedConsts);
             UpdateGroupUI(victoryVal, lstVictory, radVictorySingle, radVictoryRandom, parsedConsts);
         }
         
@@ -548,13 +622,61 @@ namespace BGMSelector
             string normalValue = ProcessSection(lstNormal, radNormalRandom, "normalBgm", consts);
             string advantageValue = ProcessSection(lstAdvantage, radAdvantageRandom, "advantageBgm", consts);
             string disadvantageValue = ProcessSection(lstDisadvantage, radDisadvantageRandom, "disadvantageBgm", consts);
+            string bossValue = ProcessSection(lstBoss, radBossRandom, "bossBgm", consts);
+            if (bossValue == "default") bossValue = null;
             string victoryValue = ProcessSection(lstVictory, radVictoryRandom, "victoryBgm", consts);
+
+            // Boss encounter block - moved earlier to handle deletion even when all other sections are default
+            if (bossValue != null)
+            {
+                var bossScript = new StringBuilder();
+
+                // copy consts to boss file as well
+                foreach (var c in consts)
+                {
+                    bossScript.AppendLine($"const {c.Key} = random_song([{string.Join(", ", c.Value)}])");
+                }
+                if (consts.Any()) bossScript.AppendLine();
+
+                bossScript.AppendLine("encounter[\"Special Battles\"]:");
+                bossScript.AppendLine($"  music = {bossValue}");
+                bossScript.AppendLine("end");
+
+                try
+                {
+                    File.WriteAllText(_bossMusicPmePath, bossScript.ToString());
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error saving boss settings: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            else
+            {
+                // If previously saved but now cleared, wipe the boss_music.pme file so it's effectively empty
+                try
+                {
+                    if (File.Exists(_bossMusicPmePath))
+                    {
+                        File.WriteAllText(_bossMusicPmePath, string.Empty);
+                    }
+                    else
+                    {
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error clearing boss settings: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
 
             // Count how many are set
             int setCount = 0;
             if (normalValue != null) setCount++;
             if (advantageValue != null) setCount++;
             if (disadvantageValue != null) setCount++;
+            // Note: We no longer count bossValue here since it's handled separately
+            // if (bossValue != null) setCount++;
 
             // If nothing is set, save an empty file
             if (setCount == 0 && victoryValue == null)
@@ -597,6 +719,8 @@ namespace BGMSelector
                 if (disadvantageValue != null)
                     properties.Add($"disadvantage_bgm = {disadvantageValue}");
             }
+
+            // Boss value handled in separate encounter block below
 
             if (victoryValue != null)
             {
