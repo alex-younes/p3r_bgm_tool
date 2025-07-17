@@ -1,0 +1,6 @@
+const bossBgm = random_song([128, 32588, 30789])
+
+encounter["Normal Battles"]:
+  advantage_bgm = 30999
+  disadvantage_bgm = 30123
+end
