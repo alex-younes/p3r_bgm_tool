@@ -63,13 +63,14 @@ namespace BGMSelector
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 3,
+                RowCount = 4, // 3 rows for groups + 1 for buttons
             };
             mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 45F));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 45F));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 33F)); // Normal & Advantage
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 33F)); // Disadvantage & Boss
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 34F)); // Victory (spans columns)
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F)); // Buttons
 
             // Create sections
             grpNormal = CreateMusicGroup("Normal Battle", out lstNormal, out radNormalSingle, out radNormalRandom);
@@ -78,14 +79,15 @@ namespace BGMSelector
             grpBoss = CreateMusicGroup("Boss Battle", out lstBoss, out radBossSingle, out radBossRandom);
             grpVictory = CreateMusicGroup("Victory", out lstVictory, out radVictorySingle, out radVictoryRandom);
 
-            // Hide the Normal Battle group so the user cannot modify it
-            grpNormal.Visible = false;
+            // Arrange the five groups in the grid
+            mainLayout.Controls.Add(grpNormal, 0, 0);
+            mainLayout.Controls.Add(grpAdvantage, 1, 0);
+            mainLayout.Controls.Add(grpDisadvantage, 0, 1);
+            mainLayout.Controls.Add(grpBoss, 1, 1);
 
-            // Re-arrange the visible groups (Advantage, Disadvantage, Boss, Victory)
-            mainLayout.Controls.Add(grpAdvantage, 0, 0);
-            mainLayout.Controls.Add(grpDisadvantage, 1, 0);
-            mainLayout.Controls.Add(grpBoss, 0, 1);
-            mainLayout.Controls.Add(grpVictory, 1, 1);
+            // Victory spans the full width on its own row
+            mainLayout.Controls.Add(grpVictory, 0, 2);
+            mainLayout.SetColumnSpan(grpVictory, 2);
 
             // Button Panel
             var buttonPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(5) };
@@ -98,7 +100,7 @@ namespace BGMSelector
             buttonPanel.Controls.Add(btnSave);
             buttonPanel.Controls.Add(btnCancel);
             
-            mainLayout.Controls.Add(buttonPanel, 0, 2);
+            mainLayout.Controls.Add(buttonPanel, 0, 3);
             mainLayout.SetColumnSpan(buttonPanel, 2);
 
             this.Controls.Add(mainLayout);
@@ -404,6 +406,14 @@ namespace BGMSelector
                         System.Diagnostics.Debug.WriteLine($"[BGME] Parsed normal music: {normalVal}");
                     }
 
+                    // Parse normal_bgm (explicit normal context)
+                    var normalBgmRegex = new Regex(@"\bnormal_bgm\b\s*=\s*(?<normal>[^=\r\n]+)");
+                    var normalBgmMatch = normalBgmRegex.Match(blockContent);
+                    if (normalBgmMatch.Success)
+                    {
+                        normalVal = NormalizeValue(normalBgmMatch.Groups["normal"].Value.Trim());
+                        System.Diagnostics.Debug.WriteLine($"[BGME] Parsed normal_bgm music: {normalVal}");
+                    }
                     // Parse advantage_bgm
                     var advantageRegex = new Regex(@"\badvantage_bgm\b\s*=\s*(?<advantage>[^=\r\n]+)");
                     var advantageMatch = advantageRegex.Match(blockContent);
@@ -703,17 +713,26 @@ namespace BGMSelector
             }
             else if (normalValue != null && advantageValue != null && disadvantageValue == null)
             {
-                properties.Add($"music = battle_bgm({normalValue}, {advantageValue})");
+                // Normal and Advantage set, separate properties so Advantage doesn't force Normal context usage
+                properties.Add($"normal_bgm = {normalValue}");
+                properties.Add($"advantage_bgm = {advantageValue}");
             }
             else if (normalValue != null && advantageValue == null && disadvantageValue == null)
             {
+                // Only Normal set
                 properties.Add($"music = {normalValue}");
             }
             else
             {
                 // For any that are set, but not covered above, use separate lines
                 if (normalValue != null)
-                    properties.Add($"music = {normalValue}");
+                {
+                    // Use normal_bgm when any other context is set to avoid overriding logic
+                    if (advantageValue != null || disadvantageValue != null)
+                        properties.Add($"normal_bgm = {normalValue}");
+                    else
+                        properties.Add($"music = {normalValue}");
+                }
                 if (advantageValue != null)
                     properties.Add($"advantage_bgm = {advantageValue}");
                 if (disadvantageValue != null)

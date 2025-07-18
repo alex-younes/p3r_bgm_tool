@@ -1,5 +1,0 @@
-const bossBgm = random_song([128, 32588, 30789])
-
-encounter["Special Battles"]:
-  music = bossBgm
-end
