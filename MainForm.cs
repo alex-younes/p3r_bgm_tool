@@ -302,7 +302,7 @@ namespace BGMSelector
             // Define column styles
             assignmentControlsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110F));
             assignmentControlsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            assignmentControlsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            assignmentControlsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160F));
 
             // Define row styles
             assignmentControlsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Selected Track
@@ -323,12 +323,12 @@ namespace BGMSelector
             
             var enableMultiSelectCheckbox = new CheckBox 
             { 
-                Text = "Enable for multiple selection", 
-                Font = new Font("Arial", 8F, FontStyle.Italic), // Smaller italic font
+                Text = "Enable Multi-Select", 
+                Font = new Font("Arial", 8F), // Smaller font
                 AutoSize = true, 
-                ForeColor = Color.Gray, 
+                ForeColor = _lightText, 
                 BackColor = Color.Transparent,
-                Anchor = AnchorStyles.Left // Left-align in cell
+                Anchor = AnchorStyles.None // Center the checkbox in its cell
             };
 
             // --- Create Action Buttons Panel ---
@@ -336,7 +336,7 @@ namespace BGMSelector
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 5, // Increased to 5 for checkbox row
+                RowCount = 4, // Added row for randomize button
                 Margin = new Padding(10, 0, 0, 0)
             };
             actionButtonsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
@@ -345,7 +345,6 @@ namespace BGMSelector
             actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
             actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
             actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
-            actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // AutoSize for checkbox
 
             var saveButton = new Button { Text = "Save", Dock = DockStyle.Fill, BackColor = _personaBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
             var refreshHcaButton = new Button { Text = "↻", Dock = DockStyle.Fill, BackColor = Color.FromArgb(60, 60, 60), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Arial", 10, FontStyle.Bold) };
@@ -361,9 +360,6 @@ namespace BGMSelector
             actionButtonsPanel.SetColumnSpan(removeButton, 2);
             actionButtonsPanel.Controls.Add(randomizeButton, 0, 3);
             actionButtonsPanel.SetColumnSpan(randomizeButton, 2);
-            actionButtonsPanel.Controls.Add(enableMultiSelectCheckbox, 0, 4);
-            actionButtonsPanel.SetColumnSpan(enableMultiSelectCheckbox, 2);
-            enableMultiSelectCheckbox.Anchor = AnchorStyles.None; // Center in the cell
 
             // --- Arrange Main Controls in Layout ---
             assignmentControlsLayout.Controls.Add(selectedTrackLabel, 0, 0);
@@ -375,12 +371,12 @@ namespace BGMSelector
             assignmentControlsLayout.Controls.Add(hcaFileComboBox, 1, 2);
             
             assignmentControlsLayout.Controls.Add(actionButtonsPanel, 2, 0);
-            assignmentControlsLayout.SetRowSpan(actionButtonsPanel, 4); // Increased to 4 to include the new checkbox row
+            assignmentControlsLayout.SetRowSpan(actionButtonsPanel, 4); // Set RowSpan to 4 to include randomize button
             
             assignmentControlsLayout.Controls.Add(dropPanel, 0, 3);
             assignmentControlsLayout.SetColumnSpan(dropPanel, 2);
             
-            // Removed: assignmentControlsLayout.Controls.Add(enableMultiSelectCheckbox, 2, 3); since it's now in actionButtonsPanel
+            assignmentControlsLayout.Controls.Add(enableMultiSelectCheckbox, 2, 3);
             
             rightPanel.Controls.Add(assignmentsListView);
             rightPanel.Controls.Add(assignmentControlsLayout);
