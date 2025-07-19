@@ -1629,10 +1629,31 @@ namespace BGMSelector
                 buttonsPanel.Controls.Add(convertButton, 2, 0);
                 buttonsPanel.Controls.Add(importButton, 3, 0);
 
-                // Add controls to main layout
+                // Insert new row for boost slider after fileListView
+                mainLayout.RowCount = 4;
+                mainLayout.RowStyles.Insert(2, new RowStyle(SizeType.Absolute, 30));
+
+                // Add boost slider to new row
+                Panel boostPanel = new Panel { Dock = DockStyle.Fill };
+                Label boostLabel = new Label { Text = "Boost (dB):", Dock = DockStyle.Left, ForeColor = _lightText, AutoSize = true };
+                NumericUpDown boostSlider = new NumericUpDown
+                {
+                    Minimum = 0,
+                    Maximum = 24,
+                    Value = 12,
+                    DecimalPlaces = 0,
+                    Dock = DockStyle.Fill,
+                    BackColor = Color.FromArgb(50, 50, 50),
+                    ForeColor = _lightText
+                };
+                boostPanel.Controls.Add(boostSlider);
+                boostPanel.Controls.Add(boostLabel);
+
+                // Add all to layout (ensure order)
                 mainLayout.Controls.Add(dropPanel, 0, 0);
                 mainLayout.Controls.Add(fileListView, 0, 1);
-                mainLayout.Controls.Add(buttonsPanel, 0, 2);
+                mainLayout.Controls.Add(boostPanel, 0, 2);
+                mainLayout.Controls.Add(buttonsPanel, 0, 3);
 
                 converterForm.Controls.Add(mainLayout);
 
@@ -1782,49 +1803,134 @@ namespace BGMSelector
                         item.SubItems[2].Text = outputFileName;
                         fileListView.Update();
                         
+                        string boostedWav = Path.Combine(tempDir, $"boosted_{Path.GetFileName(inputFile)}");
                         try
                         {
-                            // Run VGAudioCli
-                            ProcessStartInfo psi = new ProcessStartInfo
+                            // 1) Volume-boost and resample with FFmpeg
+                            string ffmpegPath = Path.Combine(baseDir, "ffmpeg", "bin", "ffmpeg.exe");
+                            if (!File.Exists(ffmpegPath))
                             {
-                                FileName = vgAudioPath,
-                                Arguments = $"\"{inputFile}\" -o \"{outputFile}\"",
+                                // fallback search
+                                string[] ffmpegPaths = {
+                                    Path.Combine(baseDir, "tools", "ffmpeg.exe"),
+                                    Path.Combine(baseDir, "..", "tools", "ffmpeg.exe"),
+                                    Path.Combine(baseDir, "ffmpeg", "bin", "ffmpeg.exe"),
+                                    Path.Combine(baseDir, "..", "ffmpeg", "bin", "ffmpeg.exe"),
+                                    Path.Combine(baseDir, "ffmpeg.exe"),
+                                };
+                                foreach (var p in ffmpegPaths) { if (File.Exists(p)) { ffmpegPath = p; break; } }
+                            }
+
+                            if (!File.Exists(ffmpegPath))
+                            {
+                                throw new FileNotFoundException("ffmpeg.exe not found. Place it in ffmpeg/bin or specify manually.");
+                            }
+
+                            // Boost with user-selected dB
+                            decimal boostDb = boostSlider.Value;
+                            ProcessStartInfo ffPsi = new ProcessStartInfo
+                            {
+                                FileName = ffmpegPath,
+                                Arguments = $"-y -i \"{inputFile}\" -af volume={boostDb}dB,alimiter=limit=0.9 -ar 48000 -ac 2 -sample_fmt s16 \"{boostedWav}\"",
                                 UseShellExecute = false,
                                 CreateNoWindow = true,
                                 RedirectStandardOutput = true,
                                 RedirectStandardError = true
                             };
-                            
+
+                            using (var ff = Process.Start(ffPsi))
+                            {
+                                ff.WaitForExit();
+                                if (ff.ExitCode != 0 || !File.Exists(boostedWav))
+                                {
+                                    string err = ff.StandardError.ReadToEnd();
+                                    item.SubItems[1].Text = "Boost Failed";
+                                    MessageBox.Show($"FFmpeg failed on {Path.GetFileName(inputFile)}:\n\n{err}", "FFmpeg Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                    continue; // skip to next file
+                                }
+                            }
+
+                            // Get total samples from boostedWav
+                            ProcessStartInfo metaPsi = new ProcessStartInfo
+                            {
+                                FileName = vgAudioPath,
+                                Arguments = $"-m \"{boostedWav}\"",
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true
+                            };
+
+                            string metaOutput = "";
+                            using (Process metaProc = Process.Start(metaPsi))
+                            {
+                                metaOutput = metaProc.StandardOutput.ReadToEnd();
+                                metaProc.WaitForExit();
+                                if (metaProc.ExitCode != 0)
+                                {
+                                    item.SubItems[1].Text = "Metadata Failed";
+                                    continue;
+                                }
+                            }
+
+                            // Parse 'Sample count: X (Y seconds)'
+                            string samplesLine = metaOutput.Split('\n').FirstOrDefault(l => l.StartsWith("Sample count:"));
+                            if (string.IsNullOrEmpty(samplesLine))
+                            {
+                                item.SubItems[1].Text = "Parse Failed";
+                                continue;
+                            }
+
+                            string samplesStr = samplesLine.Split(':')[1].Split(' ')[1].Trim();
+                            if (!long.TryParse(samplesStr, out long totalSamples) || totalSamples <= 0)
+                            {
+                                item.SubItems[1].Text = "Invalid Samples";
+                                continue;
+                            }
+
+                            long loopEnd = totalSamples - 1;
+
+                            // Encode with explicit loop points
+                            ProcessStartInfo psi = new ProcessStartInfo
+                            {
+                                FileName = vgAudioPath,
+                                Arguments = $"\"{boostedWav}\" -o \"{outputFile}\" -l 0-{loopEnd}",
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true
+                            };
+
                             using (Process process = Process.Start(psi))
                             {
+                                string vStdErr = process.StandardError.ReadToEnd();
                                 process.WaitForExit();
-                                
+
                                 if (process.ExitCode == 0 && File.Exists(outputFile))
                                 {
-                                    // Update status and file info
                                     item.SubItems[1].Text = "Converted";
-                                    
-                                    // Get file size
                                     long fileSize = new FileInfo(outputFile).Length;
-                                    string sizeText = fileSize < 1024 * 1024 
-                                        ? $"{fileSize / 1024} KB" 
-                                        : $"{fileSize / (1024 * 1024)} MB";
-                                    
+                                    string sizeText = fileSize < 1024 * 1024 ? $"{fileSize / 1024} KB" : $"{fileSize / (1024 * 1024)} MB";
                                     item.SubItems[3].Text = sizeText;
-                                    
-                                    // Store converted file path
                                     convertedFiles[inputFile] = outputFile;
                                 }
                                 else
                                 {
                                     item.SubItems[1].Text = "Failed";
+                                    string errDetails = $"Command: {psi.Arguments}\nExit Code: {process.ExitCode}\nStdErr: {vStdErr ?? "(none)"}\n\nTry running this manually in cmd: {psi.FileName} {psi.Arguments}";
+                                    MessageBox.Show($"VGAudioCli failed on {Path.GetFileName(boostedWav)}:\n\n{errDetails}", "HCA Conversion Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                                 }
                             }
                         }
                         catch (Exception ex)
                         {
                             item.SubItems[1].Text = "Error";
-                            MessageBox.Show($"Error converting {Path.GetFileName(inputFile)}: {ex.Message}", "Conversion Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            MessageBox.Show($"Error processing {Path.GetFileName(inputFile)}: {ex.Message}", "Conversion Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                        finally
+                        {
+                            // cleanup temp boosted WAV
+                            try { if (File.Exists(boostedWav)) File.Delete(boostedWav); } catch { }
                         }
                     }
                     
